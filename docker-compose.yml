@@ -1,0 +1,12 @@
+services:
+  sozanban:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - TRUST_PROXY=1
+    volumes:
+      - votes:/data
+volumes:
+  votes:
