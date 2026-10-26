@@ -3,6 +3,8 @@ import { LEVELS, DEFAULT_LABELS } from './levels.js';
 import { createScene } from './scene.js';
 import * as A from './art.js';
 import * as sound from './audio.js';
+import * as music from './music.js';
+import { share, prepare, renderResult, renderLevel, renderGame } from './share.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const app = $('#app');
@@ -11,6 +13,8 @@ const faNum = (n) => Math.round(n).toLocaleString('fa-IR');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TOTAL = LEVELS.length;
+const SITE = 'دردسرهای سوزن‌بان';
+const SHARE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="ln" d="M12 15 V4 M7.5 8.5 L12 4 L16.5 8.5"/><path class="ln" d="M7 11 H5.5 V20 H18.5 V11 H17"/></svg>';
 
 // ───────── حافظه‌ی محلی ─────────
 const store = {
@@ -126,7 +130,7 @@ async function sendVote(level, choice) {
 // ───────── دو نسخه: ایران و بین‌الملل ─────────
 function handoffUrl(target) {
   const data = { s: sessionId(), p: { idx: state.idx, answers: state.answers }, q: store.get('pending', []) };
-  return `${target}/#handoff=${encodeURIComponent(JSON.stringify(data))}`;
+  return `${target}${location.pathname}#handoff=${encodeURIComponent(JSON.stringify(data))}`;
 }
 
 // آیا نسخه‌ی دیگر الان در دسترس است؟ (پاسخ cross-origin خوانده نمی‌شود، فقط رسیدنش مهم است)
@@ -278,6 +282,7 @@ function introScreen() {
       </div>
       <p class="fine">رأی‌ها ناشناس ثبت می‌شوند.${players ? ` تا امروز <b class="players">${faNum(players)}</b> نفر سوزن‌بان شده‌اند.` : ''}</p>
       ${altLink()}
+      <button class="btn share-game" data-act="share" type="button">${SHARE_ICON}بازی را به دوستانت نشان بده</button>
       <ul class="howto">
         <li><span class="k">۱</span> سناریو را بخوانید</li>
         <li><span class="k">۲</span> اهرم را بکشید… یا نکشید</li>
@@ -294,7 +299,8 @@ function introScreen() {
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (!act) return;
     sound.play('click');
-    if (act === 'start') {
+    if (act === 'share') share(gameItem());
+    else if (act === 'start') {
       state.idx = 0;
       state.answers = {};
       save();
@@ -306,12 +312,14 @@ function introScreen() {
 }
 
 function showIntro() {
+  leaveChallenge();
   document.body.dataset.screen = 'intro';
   $('#progress').hidden = true;
   $('#deaths').hidden = true;
   setSub('');
   hideResult();
   swap(introScreen);
+  setTimeout(() => prepare(gameItem()), 2500);
 }
 
 // ───────── مرحله‌ها ─────────
@@ -323,20 +331,26 @@ function startGame() {
   showLevel();
 }
 
+// مرحله‌ی فعلی: در حالت چالش (لینک /l/<id>) همان مرحله، وگرنه مرحله‌ی بعدی بازی
+const currentLevel = () => state.challenge || LEVELS[state.idx];
+
 function showLevel() {
-  const level = LEVELS[state.idx];
+  const level = currentLevel();
   if (!level) return endScreen();
   const labels = { ...DEFAULT_LABELS, ...level.labels };
   hideResult();
   updateProgress();
-  setSub(`مرحله‌ی ${fa(state.idx + 1)} از ${fa(TOTAL)}: ${level.title}`);
+  setSub(state.challenge ? `چالش: ${level.title}` : `مرحله‌ی ${fa(state.idx + 1)} از ${fa(TOTAL)}: ${level.title}`);
   state.busy = false;
 
   swap(() => {
     const node = html(`
       <section class="screen game">
         <div class="stage-host"></div>
-        <p class="question">${splitWords(level.text)}</p>
+        <div class="q-row">
+          <p class="question">${splitWords(level.text)}</p>
+          <button class="icon-btn share-btn" type="button" aria-label="اشتراک‌گذاری این مرحله" title="اشتراک‌گذاری این مرحله">${SHARE_ICON}</button>
+        </div>
         <div class="choices">
           <button class="btn btn-pull choice" data-choice="pull" type="button"><span class="key">۱</span>${labels.pull}</button>
           <button class="btn btn-stay choice" data-choice="stay" type="button"><span class="key">۲</span>${labels.stay}</button>
@@ -350,14 +364,20 @@ function showLevel() {
       b.addEventListener('blur', () => !state.busy && state.scene?.preview(null));
       b.addEventListener('click', () => choose(b.dataset.choice));
     }
+    $('.share-btn', node).addEventListener('click', () => {
+      sound.play('click');
+      share(levelItem(level));
+    });
     return node;
   });
+  // بعد از تمام شدن انیمیشن ورود، تصویر اشتراک از قبل ساخته می‌شود
+  setTimeout(() => { if (currentLevel() === level && !state.busy) prepare(levelItem(level)); }, 2600);
 }
 
 async function choose(choice) {
   if (state.busy) return;
   state.busy = true;
-  const level = LEVELS[state.idx];
+  const level = currentLevel();
   sound.play('click');
   const screen = $('.screen.game');
   screen.classList.add('chosen');
@@ -376,9 +396,13 @@ async function choose(choice) {
   const total = tally.pull + tally.stay;
   const agree = total ? tally[choice] / total : 1;
 
-  state.answers[level.id] = { choice, deaths: result.deaths, agree, pull: tally.pull, stay: tally.stay };
-  save();
-  renderDeaths(true);
+  state.stats.levels[level.id] = { pull: tally.pull, stay: tally.stay };
+  // در حالت چالش پیشرفت ذخیره‌شده‌ی بازی دست نمی‌خورد
+  if (!state.challenge) {
+    state.answers[level.id] = { choice, deaths: result.deaths, agree, pull: tally.pull, stay: tally.stay };
+    save();
+    renderDeaths(true);
+  }
   showResult({ level, choice, tally, agree, deaths: result.deaths, offline });
 }
 
@@ -415,9 +439,19 @@ function showResult({ level, choice, tally, agree, deaths, offline }) {
   requestAnimationFrame(() => requestAnimationFrame(() => { fg.style.strokeDasharray = `${pct} ${100 - pct}`; }));
   sound.play('result');
   const next = $('#nextBtn');
-  next.innerHTML = state.idx + 1 >= TOTAL ? 'دیدن نتیجه‌ی نهایی <span class="arrow">←</span>' : 'بعدی <span class="arrow">←</span>';
+  let label = state.idx + 1 >= TOTAL ? 'دیدن نتیجه‌ی نهایی' : 'بعدی';
+  if (state.challenge) label = state.idx > 0 && state.idx < TOTAL ? 'ادامه‌ی بازی' : 'بازی کامل را شروع کن';
+  next.innerHTML = `${label} <span class="arrow">←</span>`;
   setTimeout(() => next.focus({ preventScroll: true }), 350);
+  setTimeout(() => prepare(levelItem(level)), 1200);
 }
+
+$('#rbShare').addEventListener('click', () => {
+  const level = currentLevel();
+  if (!level) return;
+  sound.play('click');
+  share(levelItem(level));
+});
 
 function hideResult() {
   $('#resultBar').classList.remove('show');
@@ -428,6 +462,17 @@ $('#nextBtn').addEventListener('click', () => {
   if (!$('#resultBar').classList.contains('show')) return;
   sound.play('click');
   hideResult();
+  if (state.challenge) {
+    leaveChallenge();
+    if (state.idx > 0 && state.idx < TOTAL) startGame();
+    else if (state.idx >= TOTAL) showIntro();
+    else {
+      state.answers = {};
+      save();
+      startGame();
+    }
+    return;
+  }
   state.idx += 1;
   save();
   if (state.idx >= TOTAL) endScreen();
@@ -521,7 +566,8 @@ function endScreen() {
       sound.play('fanfare');
       confetti(node);
     }, 400);
-    node.addEventListener('click', async (e) => {
+    setTimeout(() => prepare(resultItem(deaths, arch)), 2200);
+    node.addEventListener('click', (e) => {
       const act = e.target.closest('[data-act]')?.dataset.act;
       if (!act) return;
       sound.play('click');
@@ -532,19 +578,68 @@ function endScreen() {
         renderDeaths();
         startGame();
       } else if (act === 'share') {
-        const text = `در «دردسرهای سوزن‌بان» ${fa(deaths)} نفر را زیر قطار فرستادم و تیپ اخلاقی‌ام شد «${arch.name}» ${arch.icon}\nتو چه می‌کنی؟`;
-        const url = location.origin;
-        try {
-          if (navigator.share) await navigator.share({ title: 'دردسرهای سوزن‌بان', text, url });
-          else {
-            await navigator.clipboard.writeText(`${text}\n${url}`);
-            toast('متن نتیجه کپی شد!');
-          }
-        } catch { /* کاربر لغو کرد */ }
+        share(resultItem(deaths, arch));
       }
     });
     return node;
   });
+}
+
+// ───────── اشتراک‌گذاری ─────────
+const clip = (text, max = 120) => (text.length <= max ? text : `${text.slice(0, text.lastIndexOf(' ', max))}…`);
+
+function gameItem() {
+  return {
+    key: 'game',
+    title: SITE,
+    text: `«${SITE}»: ${fa(TOTAL)} دوراهی اخلاقی عجیب. اهرم را می‌کشی یا نه؟`,
+    url: `${location.origin}/`,
+    filename: 'soozanban',
+    formats: ['story', 'post'],
+    render: (f) => renderGame({ count: TOTAL, host: location.host }, f),
+  };
+}
+
+function levelItem(level) {
+  const stat = state.stats.levels[level.id] || null;
+  const total = stat ? stat.pull + stat.stay : 0;
+  const line = total >= 3 ? `${fa(Math.round((stat.pull / total) * 100))}٪ اهرم را کشیدند. ` : '';
+  return {
+    key: `level:${level.id}:${total >= 3 ? `${stat.pull}-${stat.stay}` : ''}`,
+    title: `${level.title} | ${SITE}`,
+    text: `«${level.title}»: ${clip(level.text)}\n${line}تو چه می‌کنی؟`,
+    url: `${location.origin}/l/${encodeURIComponent(level.id)}`,
+    filename: `soozanban-${level.id}`,
+    formats: ['story', 'post'],
+    render: (f) => renderLevel({ level, stat, host: location.host }, f),
+  };
+}
+
+function resultItem(deaths, arch) {
+  return {
+    key: `result:${deaths}:${arch.name}:${arch.pulls}:${arch.agreeCount}:${arch.n}`,
+    title: SITE,
+    text: `در «${SITE}» ${fa(deaths)} نفر را زیر قطار فرستادم و تیپ اخلاقی‌ام شد «${arch.name}» ${arch.icon}\nتو چه می‌کنی؟`,
+    url: `${location.origin}/`,
+    filename: 'soozanban-result',
+    formats: ['story', 'post'],
+    render: (f) => renderResult({ deaths, arch, host: location.host }, f),
+  };
+}
+
+// ───────── چالش تک‌مرحله‌ای (لینک /l/<id>) ─────────
+function startChallenge(level) {
+  state.challenge = level;
+  document.body.dataset.screen = 'game';
+  $('#progress').hidden = true;
+  $('#deaths').hidden = true;
+  showLevel();
+}
+
+function leaveChallenge() {
+  if (!state.challenge) return;
+  state.challenge = null;
+  if (location.pathname !== '/') history.replaceState(null, '', '/');
 }
 
 // کاغذرنگی‌های خطی
@@ -583,6 +678,20 @@ $('#soundBtn').addEventListener('click', () => {
 });
 renderSoundBtn();
 
+function renderMusicBtn() {
+  const b = $('#musicBtn');
+  const on = music.isEnabled();
+  b.classList.toggle('off', !on);
+  b.setAttribute('aria-pressed', String(on));
+  b.setAttribute('aria-label', on ? 'موسیقی: روشن' : 'موسیقی: خاموش');
+}
+$('#musicBtn').addEventListener('click', () => {
+  music.setEnabled(!music.isEnabled());
+  renderMusicBtn();
+  sound.play('click');
+});
+renderMusicBtn();
+
 $('.brand').addEventListener('click', (e) => {
   e.preventDefault();
   sound.play('click');
@@ -610,6 +719,12 @@ async function boot() {
   await Promise.race([Promise.all([fonts, loadStats(), where]), wait(3500)]);
   flushPending();
   const deep = location.hash.match(/^#level-(\d+)$/);
+  const pathMatch = location.pathname.match(/^\/l\/([^/]+)\/?$/);
+  let challenge = null;
+  if (pathMatch) {
+    try { challenge = LEVELS.find((l) => l.id === decodeURIComponent(pathMatch[1])) || null; } catch { /* آدرس خراب */ }
+    if (!challenge) history.replaceState(null, '', '/');
+  }
 
   // هدایت به نسخه‌ی مناسب (کاربر ایرانی ← نسخه‌ی ایران، کاربر خارج ← نسخه‌ی بین‌الملل)
   const suggest = state.where?.suggest;
@@ -628,7 +743,8 @@ async function boot() {
   loader.classList.add('done');
   setTimeout(() => loader.remove(), 900);
   document.body.classList.add('ready');
-  if (deep && LEVELS[deep[1] - 1]) {
+  if (challenge) startChallenge(challenge);
+  else if (deep && LEVELS[deep[1] - 1]) {
     state.idx = deep[1] - 1;
     history.replaceState(null, '', location.pathname);
     startGame();
