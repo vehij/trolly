@@ -175,6 +175,19 @@ export function createApp({
       cached = { etag, raw, gz: COMPRESSIBLE.has(ext) ? gzipSync(raw) : null };
       fileCache.set(file, cached);
     }
+    // سافاری فایل صوتی را فقط با پاسخ‌های Range (206) پخش می‌کند
+    if (!cached.gz) {
+      headers['Accept-Ranges'] = 'bytes';
+      const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+      if (m && (m[1] || m[2])) {
+        const size = cached.raw.length;
+        const start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2]));
+        const end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+        if (start >= size || start > end) return send(res, 416, null, { ...headers, 'Content-Range': `bytes */${size}` });
+        headers['Content-Range'] = `bytes ${start}-${end}/${size}`;
+        return send(res, 206, req.method === 'HEAD' ? null : cached.raw.subarray(start, end + 1), headers);
+      }
+    }
     const useGzip = cached.gz && /\bgzip\b/.test(req.headers['accept-encoding'] || '');
     if (useGzip) headers['Content-Encoding'] = 'gzip';
     send(res, 200, req.method === 'HEAD' ? null : useGzip ? cached.gz : cached.raw, headers);
