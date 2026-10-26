@@ -450,9 +450,10 @@ main { max-width: 1060px; margin: 0 auto; padding: 8px clamp(14px, 3vw, 28px) 40
 .cta { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; animation: rise .7s .5s var(--out) both; }
 .fine { color: var(--ink-soft); font-size: .92rem; margin-top: 18px; animation: rise .7s .65s var(--out) both; }
 .fine.alt { margin-top: 6px; animation-delay: .75s; }
-.credit { margin: 28px 0 0; font-size: .8rem; color: var(--ink-soft); text-align: center; animation: rise .7s 1.1s var(--out) both; }
+.credit { margin: 28px 0 0; font-size: .8rem; line-height: 2; color: var(--ink-soft); text-align: center; animation: rise .7s 1.1s var(--out) both; }
 .credit a { color: inherit; font-weight: 700; text-decoration: none; border-bottom: 1px dashed currentColor; direction: ltr; unicode-bidi: isolate; }
 .credit a:hover { color: var(--accent); }
+.credit .owner { direction: rtl; }
 .alt-link {
   color: var(--ink);
   font-weight: 800;

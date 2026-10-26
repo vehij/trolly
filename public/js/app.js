@@ -14,7 +14,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TOTAL = LEVELS.length;
 const SITE = 'دردسرهای سوزن‌بان';
-const CREDIT = '<p class="credit">با الهام از <a href="https://neal.fun/absurd-trolley-problems/" target="_blank" rel="noopener">Absurd Trolley Problems</a> اثر نیل آگاروال</p>';
+const CREDIT = '<p class="credit">با الهام از <a href="https://neal.fun/absurd-trolley-problems/" target="_blank" rel="noopener">Absurd Trolley Problems</a> اثر نیل آگاروال<br>ساخته‌ی <a class="owner" href="https://yaghoubian.com" target="_blank" rel="noopener">وحید یعقوبیان</a></p>';
 const SHARE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="ln" d="M12 15 V4 M7.5 8.5 L12 4 L16.5 8.5"/><path class="ln" d="M7 11 H5.5 V20 H18.5 V11 H17"/></svg>';
 
 // ───────── حافظه‌ی محلی ─────────
