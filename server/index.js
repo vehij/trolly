@@ -1,6 +1,7 @@
 // سرور «دردسرهای سوزن‌بان»: فایل‌های ایستا + API رأی‌گیری
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join, normalize, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
@@ -10,10 +11,12 @@ import { createSyncWorker } from './sync.js';
 import { countryOf } from './geo.js';
 import { loadConfig, ROOT } from './config.js';
 import { LEVELS } from '../public/js/levels.js';
+import { originFor, levelById, injectMeta } from './meta.js';
 
 const PUBLIC = join(ROOT, 'public');
 const LEVEL_IDS = new Set(LEVELS.map((l) => l.id));
 const SESSION_RE = /^[A-Za-z0-9_-]{8,64}$/;
+const LEVEL_PATH_RE = /^\/l\/([^/]+)\/?$/;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -26,6 +29,7 @@ const MIME = {
   '.webmanifest': 'application/manifest+json',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
+  '.wav': 'audio/wav',
 };
 const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.svg', '.json', '.webmanifest', '.txt']);
 
@@ -40,7 +44,8 @@ const csp = (altUrl) => [
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
-  "img-src 'self' data:",
+  "img-src 'self' data: blob:",
+  "media-src 'self'",
   `connect-src 'self'${altUrl ? ` ${altUrl}` : ''}`,
   "base-uri 'self'",
   "form-action 'self'",
@@ -123,6 +128,9 @@ export function createApp({
   const allowVote = rateLimiter({ windowMs: 60_000, max: voteLimit });
   const fileCache = new Map();
   let statsCache = null;
+  const pageCache = new Map();
+  // مرحله‌هایی که تصویر پیش‌نمایش اختصاصی دارند (public/og/<id>.png، ساخته‌شده با scripts/render-og.mjs)
+  const levelImages = new Set(LEVELS.filter((l) => existsSync(join(PUBLIC, 'og', `${l.id}.png`))).map((l) => l.id));
   const secretHash = syncSecret ? createHash('sha256').update(syncSecret).digest() : null;
 
   // پشت پراکسی: آخرین مقدار X-Forwarded-For را خود پراکسی ما (Apache/LiteSpeed) اضافه کرده و قابل جعل نیست؛
@@ -168,6 +176,28 @@ export function createApp({
       fileCache.set(file, cached);
     }
     const useGzip = cached.gz && /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+    if (useGzip) headers['Content-Encoding'] = 'gzip';
+    send(res, 200, req.method === 'HEAD' ? null : useGzip ? cached.gz : cached.raw, headers);
+  }
+
+  // index.html با تگ‌های پیش‌نمایش لینک برای همین دامنه (و همین مرحله در /l/<id>)
+  async function servePage(req, res, level) {
+    const file = join(PUBLIC, 'index.html');
+    const info = await stat(file);
+    const origin = originFor(req.headers.host, region);
+    const key = `${origin}|${level?.id || ''}`;
+    let cached = pageCache.get(key);
+    if (!cached || cached.mtime !== info.mtimeMs) {
+      const html = injectMeta(await readFile(file, 'utf8'), { origin, level, hasLevelImage: !!level && levelImages.has(level.id) });
+      const raw = Buffer.from(html);
+      const etag = `W/"${createHash('sha1').update(raw).digest('base64url').slice(0, 20)}"`;
+      cached = { mtime: info.mtimeMs, etag, raw, gz: gzipSync(raw) };
+      if (pageCache.size > 500) pageCache.clear();
+      pageCache.set(key, cached);
+    }
+    const headers = { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-cache', ETag: cached.etag, Vary: 'Accept-Encoding' };
+    if (req.headers['if-none-match'] === cached.etag) return send(res, 304, null, headers);
+    const useGzip = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
     if (useGzip) headers['Content-Encoding'] = 'gzip';
     send(res, 200, req.method === 'HEAD' ? null : useGzip ? cached.gz : cached.raw, headers);
   }
@@ -258,6 +288,14 @@ export function createApp({
       if (pathname.startsWith('/api/sync/')) return await handleSync(req, res, url);
       if (pathname === '/healthz') return json(res, 200, { ok: true, region });
       if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');
+      if (pathname === '/' || pathname === '/index.html') return await servePage(req, res, null);
+      const lm = LEVEL_PATH_RE.exec(pathname);
+      if (lm) {
+        let level = null;
+        try { level = levelById(decodeURIComponent(lm[1])); } catch { /* آدرس خراب */ }
+        if (!level) return send(res, 302, null, { Location: '/', 'Cache-Control': 'no-cache' });
+        return await servePage(req, res, level);
+      }
       return await serveStatic(req, res, pathname);
     } catch (err) {
       console.error(err);
