@@ -1,5 +1,5 @@
 // جریان کلی بازی: لودر، صفحه‌ی شروع، مرحله‌ها، نتیجه‌ها و جمع‌بندی پایانی
-import { LEVELS, DEFAULT_LABELS } from './levels.js';
+import { LEVELS, DEFAULT_LABELS, MIN_VOTES, hasChoice } from './levels.js';
 import { createScene } from './scene.js';
 import * as A from './art.js';
 import * as sound from './audio.js';
@@ -14,6 +14,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TOTAL = LEVELS.length;
 const SITE = 'دردسرهای سوزن‌بان';
+const CREDIT = '<p class="credit">با الهام از <a href="https://neal.fun/absurd-trolley-problems/" target="_blank" rel="noopener">Absurd Trolley Problems</a> اثر نیل آگاروال</p>';
 const SHARE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="ln" d="M12 15 V4 M7.5 8.5 L12 4 L16.5 8.5"/><path class="ln" d="M7 11 H5.5 V20 H18.5 V11 H17"/></svg>';
 
 // ───────── حافظه‌ی محلی ─────────
@@ -253,16 +254,8 @@ function html(str) {
 
 // ───────── صفحه‌ی شروع ─────────
 function heroSvg() {
-  const ties = Array.from({ length: 25 }, (_, i) => `<line class="tie" x1="${i * 38}" y1="244" x2="${i * 38}" y2="268"/>`).join('');
-  return `
-  <svg class="hero-art" viewBox="0 0 900 300" aria-hidden="true">
-    <g class="scenery">${A.scenery()}</g>
-    ${ties}
-    <path class="rail" d="M-20 250 H920"/><path class="rail" d="M-20 262 H920"/>
-    <g transform="translate(140 288)">${A.leverBase()}<g transform="rotate(-20 0 -7)">${A.leverArm()}</g></g>
-    <g transform="translate(186 290) scale(1.25)" class="hero-sw">${A.human({ ...A.SWITCHMAN, mood: 'happy', tied: false, arms: 'cheer' })}</g>
-    <g class="hero-run"><g transform="translate(0 256)"><g class="trolley-bob">${A.trolley({ passengers: 2 })}</g></g></g>
-  </svg>`;
+  const trolley = `<g class="hero-run"><g transform="translate(0 ${A.HERO_RAIL_Y})"><g class="trolley-bob">${A.trolley({ passengers: 2 })}</g></g></g>`;
+  return `<svg class="hero-art" viewBox="0 0 900 300" aria-hidden="true">${A.heroScene(trolley)}</svg>`;
 }
 
 function introScreen() {
@@ -288,6 +281,7 @@ function introScreen() {
         <li><span class="k">۲</span> اهرم را بکشید… یا نکشید</li>
         <li><span class="k">۳</span> ببینید چند درصد با شما هم‌نظرند</li>
       </ul>
+      ${CREDIT}
     </section>`);
   node.addEventListener('click', (e) => {
     const alt = e.target.closest('.alt-link');
@@ -353,16 +347,18 @@ function showLevel() {
         </div>
         <div class="choices">
           <button class="btn btn-pull choice" data-choice="pull" type="button"><span class="key">۱</span>${labels.pull}</button>
-          <button class="btn btn-stay choice" data-choice="stay" type="button"><span class="key">۲</span>${labels.stay}</button>
+          ${hasChoice(level) ? `<button class="btn btn-stay choice" data-choice="stay" type="button"><span class="key">۲</span>${labels.stay}</button>` : ''}
         </div>
       </section>`);
     state.scene = createScene($('.stage-host', node), level, { onSfx: sound.play });
     for (const b of node.querySelectorAll('.choice')) {
+      b.addEventListener('click', () => choose(b.dataset.choice));
+      // در مرحله‌ی «بازیکن قبلی» نتیجه از قبل معلوم نیست، پس پیش‌نمایش مسیر ندارد
+      if (!hasChoice(level)) continue;
       b.addEventListener('mouseenter', () => { if (!state.busy) { state.scene?.preview(b.dataset.choice); sound.play('hover'); } });
       b.addEventListener('focus', () => !state.busy && state.scene?.preview(b.dataset.choice));
       b.addEventListener('mouseleave', () => !state.busy && state.scene?.preview(null));
       b.addEventListener('blur', () => !state.busy && state.scene?.preview(null));
-      b.addEventListener('click', () => choose(b.dataset.choice));
     }
     $('.share-btn', node).addEventListener('click', () => {
       sound.play('click');
@@ -374,15 +370,39 @@ function showLevel() {
   setTimeout(() => { if (currentLevel() === level && !state.busy) prepare(levelItem(level)); }, 2600);
 }
 
-async function choose(choice) {
+// سهم «کشیدن» در یک مرحله، اگر رأی کافی دارد؛ وگرنه null
+function pullShare(id) {
+  const t = state.stats.levels[id];
+  const total = t ? t.pull + t.stay : 0;
+  return total >= MIN_VOTES ? t.pull / total : null;
+}
+
+async function choose(picked) {
   if (state.busy) return;
   state.busy = true;
   const level = currentLevel();
   sound.play('click');
   const screen = $('.screen.game');
   screen.classList.add('chosen');
-  screen.querySelector(`.choice[data-choice="${choice}"]`).classList.add('picked');
+  screen.querySelector(`.choice[data-choice="${picked}"]`).classList.add('picked');
 
+  // مرحله‌ی «بازیکن قبلی»: اهرم دست کس دیگری است و رأی ثبت نمی‌شود
+  if (!hasChoice(level)) {
+    const share = pullShare(level.basedOn);
+    const choice = Math.random() < (share ?? 0.5) ? 'pull' : 'stay';
+    const result = await state.scene.run(choice);
+    if (!state.scene) return;
+    if (!state.challenge) {
+      // فقط مرگ خود بازیکن در مجموع تلفات حساب می‌شود
+      state.answers[level.id] = { choice, deaths: choice === 'pull' ? 1 : 0, reveal: true };
+      save();
+      renderDeaths(true);
+    }
+    showReveal({ level, choice, share, deaths: result.deaths });
+    return;
+  }
+
+  const choice = picked;
   const votePromise = sendVote(level.id, choice);
   const result = await state.scene.run(choice);
   if (!state.scene) return;
@@ -415,18 +435,39 @@ function showResult({ level, choice, tally, agree, deaths, offline }) {
   const pullPct = total ? Math.round((tally.pull / total) * 100) : 0;
 
   const main = $('.rb-main', bar);
-  if (total <= 1) {
-    main.innerHTML = 'شما <b>اولین نفری</b> هستید که به این سؤال جواب داده!';
+  // تا وقتی رأی‌ها کم است، درصد و نمودار نشان داده نمی‌شود
+  const enough = total >= MIN_VOTES;
+  bar.classList.toggle('no-stats', !enough);
+  if (!enough) {
+    main.innerHTML = 'هنوز رأی کافی جمع نشده';
   } else {
     main.innerHTML = `<b class="pct"><span class="n">۰</span>٪</b> از مردم با شما هم‌نظرند، <span class="dis">${fa(100 - pct)}٪</span> مخالف`;
     countUp($('.n', main), pct, { dur: 900 });
   }
   $('.rb-sub', bar).innerHTML =
-    `<span class="seg">${labels.pull}: ${fa(pullPct)}٪</span>` +
-    `<span class="seg">${labels.stay}: ${fa(100 - pullPct)}٪</span>` +
+    (enough ? `<span class="seg">${labels.pull}: ${fa(pullPct)}٪</span><span class="seg">${labels.stay}: ${fa(100 - pullPct)}٪</span>` : '') +
     `<span class="seg"><span class="votes">۰</span> رأی</span>` +
     (offline ? '<span class="seg offline">آمار آفلاین</span>' : '');
   countUp($('.votes', bar), total, { dur: 1100 });
+  openResultBar({ level, choice, deaths, pct: enough ? pct : 0 });
+}
+
+// نتیجه‌ی مرحله‌ی «بازیکن قبلی»
+function showReveal({ level, choice, share, deaths }) {
+  const bar = $('#resultBar');
+  bar.classList.add('no-stats');
+  const did = choice === 'pull' ? 'این یکی هم کشید.' : 'این یکی نکشید.';
+  $('.rb-main', bar).innerHTML = share === null
+    ? `آمار مرحله‌ی اول هنوز کافی نیست، پس سکه انداختیم. ${choice === 'pull' ? 'این یکی کشید.' : did}`
+    : `${fa(Math.round(share * 100))}٪ بازیکن‌ها در مرحله‌ی اول اهرم را کشیدند. ${did}`;
+  $('.rb-sub', bar).innerHTML = choice === 'pull'
+    ? '<span class="seg">شما زیر قطار رفتید.</span>'
+    : '<span class="seg">شما زنده ماندید.</span>';
+  openResultBar({ level, choice, deaths, pct: 0 });
+}
+
+function openResultBar({ level, choice, deaths, pct }) {
+  const bar = $('#resultBar');
   $('.rb-deaths', bar).innerHTML = deaths
     ? `<span class="skull">☠</span> ${fa(deaths)} نفر`
     : '<span class="ok">کسی آسیب ندید</span>';
@@ -482,6 +523,7 @@ $('#nextBtn').addEventListener('click', () => {
 // ───────── جمع‌بندی پایانی ─────────
 function optionDeaths(level, choice) {
   if (level.deaths) return level.deaths[choice === 'pull' && level.stuck ? 'stay' : choice];
+  // در پل عابر «کشیدن» یعنی هل دادن مرد، پس تلفاتش همان ریل پایین (مرد) است
   const track = choice === 'pull' && !level.stuck ? level.bottom : level.top;
   return track.items.reduce((t, spec) => {
     if (spec.k === 'mystery') return t + spec.chance * spec.people;
@@ -490,23 +532,33 @@ function optionDeaths(level, choice) {
   }, 0);
 }
 
+// درصد هم‌نظرها برای یک جواب؛ اگر مرحله رأی کافی ندارد null
+function agreement(level, a) {
+  const t = state.stats.levels[level.id] || { pull: a.pull || 0, stay: a.stay || 0 };
+  const total = t.pull + t.stay;
+  return total >= MIN_VOTES ? t[a.choice] / total : null;
+}
+
 function archetype() {
-  const answers = LEVELS.map((l) => [l, state.answers[l.id]]).filter(([, a]) => a);
+  // فقط مرحله‌هایی که انتخاب واقعی دارند (بازیکن قبلی نه)
+  const answers = LEVELS.filter((l) => hasChoice(l) && state.answers[l.id]).map((l) => [l, state.answers[l.id]]);
   const n = answers.length || 1;
   const pulls = answers.filter(([, a]) => a.choice === 'pull').length;
-  const agreeCount = answers.filter(([, a]) => a.agree >= 0.5).length;
+  // تیپ‌های وابسته به هم‌نظری فقط وقتی که چند مرحله رأی کافی داشته باشند
+  const rated = answers.map(([l, a]) => agreement(l, a)).filter((g) => g !== null);
+  const agreeCount = rated.filter((g) => g >= 0.5).length;
+  const agreeRate = rated.length >= 5 ? agreeCount / rated.length : null;
   const minDeaths = answers.reduce((t, [l]) => t + Math.min(optionDeaths(l, 'pull'), optionDeaths(l, 'stay')), 0);
-  const excess = totalDeaths() - minDeaths;
+  const excess = answers.reduce((t, [, a]) => t + (a.deaths || 0), 0) - minDeaths;
   const pullRate = pulls / n;
-  const agreeRate = agreeCount / n;
   let a;
   if (excess > 18) a = { name: 'هرج‌ومرج‌طلب', icon: '🔥', text: 'به نظر می‌رسد قطار برای شما بیشتر یک وسیله‌ی سرگرمی بود تا یک دوراهی اخلاقی. لطفاً هیچ‌وقت سوزن‌بان واقعی نشوید.' };
   else if (pullRate < 0.25) a = { name: 'تماشاگر بی‌طرف', icon: '🫣', text: 'شما ترجیح می‌دهید دست به اهرم نزنید. اگر اتفاقی بیفتد، دست‌کم تقصیر شما نبوده… یا بوده؟' };
   else if (excess <= 3 && pullRate > 0.4) a = { name: 'فایده‌گرای حسابگر', icon: '🧮', text: 'کمترین تلفات، بیشترین منفعت. ماشین‌حساب اخلاقی شما بی‌وقفه کار می‌کند؛ جرمی بنتام به شما افتخار می‌کند.' };
-  else if (agreeRate > 0.75) a = { name: 'صدای اکثریت', icon: '📣', text: 'تصمیم‌هایتان تقریباً همیشه با بیشتر مردم یکی بود. اگر نظرسنجی بود، شما برنده‌اش بودید.' };
-  else if (agreeRate < 0.4) a = { name: 'تک‌رو', icon: '🦄', text: 'شما معمولاً برخلاف جریان تصمیم می‌گیرید. یا خیلی جلوتر از بقیه‌اید، یا خیلی عقب‌تر.' };
+  else if (agreeRate !== null && agreeRate > 0.75) a = { name: 'صدای اکثریت', icon: '📣', text: 'تصمیم‌هایتان تقریباً همیشه با بیشتر مردم یکی بود. اگر نظرسنجی بود، شما برنده‌اش بودید.' };
+  else if (agreeRate !== null && agreeRate < 0.4) a = { name: 'تک‌رو', icon: '🦄', text: 'شما معمولاً برخلاف جریان تصمیم می‌گیرید. یا خیلی جلوتر از بقیه‌اید، یا خیلی عقب‌تر.' };
   else a = { name: 'سوزن‌بانِ دودل', icon: '⚖️', text: 'گاهی کشیدید، گاهی نکشیدید؛ دقیقاً مثل بقیه‌ی ما آدم‌ها که هر بار قانع می‌شویم حق با ماست.' };
-  return { ...a, pulls, agreeCount, n: answers.length };
+  return { ...a, pulls, agreeCount, n: LEVELS.filter((l) => state.answers[l.id]).length };
 }
 
 function endScreen() {
@@ -520,14 +572,19 @@ function endScreen() {
   const arch = archetype();
   const rows = LEVELS.map((l, i) => {
     const a = state.answers[l.id];
-    if (!a) return '';
+    if (!a || !hasChoice(l)) return '';
     const labels = { ...DEFAULT_LABELS, ...l.labels };
-    const pct = Math.round(a.agree * 100);
+    const g = agreement(l, a);
+    const pct = g === null ? 0 : Math.round(g * 100);
+    // مرحله‌ای که هنوز رأی کافی ندارد درصد هم‌نظری نشان نمی‌دهد
+    const agree = g === null
+      ? '<span class="lv-agree few" title="هنوز رأی کافی جمع نشده"><b>رأی کم</b></span>'
+      : `<span class="lv-agree" title="درصد هم‌نظرها"><i style="--w:${pct}%"></i><b>${fa(pct)}٪</b></span>`;
     return `<li style="--i:${i}">
       <span class="lv-n">${fa(i + 1)}</span>
       <span class="lv-t">${l.title}</span>
       <span class="chip ${a.choice}">${labels[a.choice]}</span>
-      <span class="lv-agree" title="درصد هم‌نظرها"><i style="--w:${pct}%"></i><b>${fa(pct)}٪</b></span>
+      ${agree}
     </li>`;
   }).join('');
 
@@ -557,6 +614,7 @@ function endScreen() {
         </div>
         <h2 class="list-title">تصمیم‌های شما</h2>
         <ol class="lv-list">${rows}</ol>
+        ${CREDIT}
       </section>`);
     setTimeout(() => {
       countUp($('.big-stat .num', node), deaths, { dur: 1600 });
@@ -603,9 +661,10 @@ function gameItem() {
 function levelItem(level) {
   const stat = state.stats.levels[level.id] || null;
   const total = stat ? stat.pull + stat.stay : 0;
-  const line = total >= 3 ? `${fa(Math.round((stat.pull / total) * 100))}٪ اهرم را کشیدند. ` : '';
+  const enough = hasChoice(level) && total >= MIN_VOTES;
+  const line = enough ? `${fa(Math.round((stat.pull / total) * 100))}٪ اهرم را کشیدند. ` : '';
   return {
-    key: `level:${level.id}:${total >= 3 ? `${stat.pull}-${stat.stay}` : ''}`,
+    key: `level:${level.id}:${enough ? `${stat.pull}-${stat.stay}` : ''}`,
     title: `${level.title} | ${SITE}`,
     text: `«${level.title}»: ${clip(level.text)}\n${line}تو چه می‌کنی؟`,
     url: `${location.origin}/l/${encodeURIComponent(level.id)}`,

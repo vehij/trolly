@@ -10,11 +10,12 @@ import { openStore, CHOICES } from './db.js';
 import { createSyncWorker } from './sync.js';
 import { countryOf } from './geo.js';
 import { loadConfig, ROOT } from './config.js';
-import { LEVELS } from '../public/js/levels.js';
+import { LEVELS, hasChoice } from '../public/js/levels.js';
 import { originFor, levelById, injectMeta } from './meta.js';
 
 const PUBLIC = join(ROOT, 'public');
-const LEVEL_IDS = new Set(LEVELS.map((l) => l.id));
+// مرحله‌ی «بازیکن قبلی» انتخاب واقعی ندارد و رأی نمی‌گیرد
+const LEVEL_IDS = new Set(LEVELS.filter(hasChoice).map((l) => l.id));
 const SESSION_RE = /^[A-Za-z0-9_-]{8,64}$/;
 const LEVEL_PATH_RE = /^\/l\/([^/]+)\/?$/;
 
