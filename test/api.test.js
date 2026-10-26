@@ -62,3 +62,30 @@ test('فایل‌های ایستا سرو می‌شوند و مسیرهای خا
 test('مرحله‌ی «بازیکن قبلی» رأی نمی‌گیرد', async () => {
   assert.equal((await vote({ session: 'session-eeee', level: 'previous-player', choice: 'pull' })).status, 400);
 });
+
+test('سرآیند کش: کد و صفحه هر بار بررسی می‌شوند، فونت و تصویر و صدا یک هفته می‌مانند', async () => {
+  const expect = {
+    '/': 'no-cache',
+    '/index.html': 'no-cache',
+    '/l/original': 'no-cache',
+    '/js/app.js': 'no-cache',
+    '/css/style.css': 'no-cache',
+    '/site.webmanifest': 'no-cache',
+    '/fonts/estedad-arabic.woff2': 'public, max-age=604800',
+    '/og.png': 'public, max-age=604800',
+    '/favicon.svg': 'public, max-age=604800',
+    '/audio/silence.wav': 'public, max-age=604800',
+  };
+  for (const [path, cc] of Object.entries(expect)) {
+    const res = await fetch(base + path);
+    await res.arrayBuffer();
+    assert.equal(res.status, 200, path);
+    assert.equal(res.headers.get('cache-control'), cc, path);
+    const etag = res.headers.get('etag');
+    assert.ok(etag, `ETag برای ${path}`);
+    // بررسی دوباره با ETag یک 304 سریع می‌دهد
+    const again = await fetch(base + path, { headers: { 'If-None-Match': etag } });
+    assert.equal(again.status, 304, path);
+    assert.equal(again.headers.get('cache-control'), cc, path);
+  }
+});

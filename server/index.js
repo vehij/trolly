@@ -33,6 +33,10 @@ const MIME = {
   '.wav': 'audio/wav',
 };
 const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.svg', '.json', '.webmanifest', '.txt']);
+// فونت، تصویر و صدا یک هفته کش می‌شوند. بقیه (js، css، html، manifest) هر بار با ETag بررسی می‌شوند
+// تا بعد از هر استقرار، کاربر بلافاصله نسخه‌ی تازه را بگیرد و html تازه با ماژول کهنه بار نشود
+const LONG_CACHE = new Set(['.woff2', '.png', '.svg', '.ico', '.wav']);
+export const cacheControlFor = (ext) => (LONG_CACHE.has(ext) ? 'public, max-age=604800' : 'no-cache');
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -164,7 +168,7 @@ export function createApp({
     const etag = `W/"${info.size.toString(16)}-${info.mtimeMs.toString(16)}"`;
     const headers = {
       'Content-Type': MIME[ext] || 'application/octet-stream',
-      'Cache-Control': ext === '.html' ? 'no-cache' : ext === '.woff2' ? 'public, max-age=31536000, immutable' : 'public, max-age=3600',
+      'Cache-Control': cacheControlFor(ext),
       ETag: etag,
       Vary: 'Accept-Encoding',
     };

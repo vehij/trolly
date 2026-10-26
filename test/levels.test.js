@@ -80,3 +80,24 @@ test('مرحله‌های ویژه درست تعریف شده‌اند', () => {
   assert.equal(LEVELS.filter((l) => !hasChoice(l)).length, 1);
   assert.equal(MIN_VOTES, 30);
 });
+
+test('چهار مرحله‌ی بازنویسی‌شده: جای درست، بدون مرگ انسان در ریل اهرم', () => {
+  const ids = LEVELS.map((l) => l.id);
+  for (const old of ['tea', 'savings', 'motorbike', 'tahdig']) assert.ok(!ids.includes(old), `شناسه‌ی قدیمی ${old} هنوز هست`);
+  assert.equal(ids[2], 'gallery');
+  assert.equal(ids[4], 'house');
+  assert.equal(ids[5], 'rider');
+  assert.equal(ids[13], 'no-tahdig');
+  const humansOn = (track) => track.items.reduce((t, i) => t + ITEMS[i.k](i, 0, 0).humans * (i.n || 1), 0);
+  for (const id of ['gallery', 'house', 'no-tahdig']) {
+    const l = LEVELS.find((x) => x.id === id);
+    assert.equal(humansOn(l.top), 1, id);
+    assert.equal(humansOn(l.bottom), 0, id);
+    assert.equal(l.deaths, undefined, id);
+    assert.ok(l.bottom.note && l.bottom.label, id);
+  }
+  // موتوری: عابر قانونی بالا (بدون دست زدن)، موتورسوار پایین (با کشیدن اهرم)
+  const rider = LEVELS.find((x) => x.id === 'rider');
+  assert.deepEqual(rider.top.items.map((i) => i.k), ['pedestrian']);
+  assert.deepEqual(rider.bottom.items.map((i) => i.k), ['rider']);
+});

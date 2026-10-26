@@ -506,8 +506,52 @@ export function prepare(item) {
 
 const fileOf = (item, format, blob) => new File([blob], `${item.filename}-${format}.png`, { type: 'image/png' });
 
+// روی دسکتاپ پنجره‌ی اشتراک سیستم (کروم و اج در ویندوز و مک) گاهی بی‌صدا شکست می‌خورد یا گیر می‌کند،
+// پس آنجا همیشه پنجره‌ی خودمان باز می‌شود و اشتراک سیستم فقط یک دکمه داخل آن است
+export function isDesktop() {
+  if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean' && navigator.userAgentData.mobile) return false;
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) return false;
+  const coarse = window.matchMedia?.('(pointer: coarse)').matches;
+  // آیپد خودش را مک معرفی می‌کند ولی لمسی است
+  return !(coarse && navigator.maxTouchPoints > 0);
+}
+
+// زیر این زمان، AbortError یعنی سیستم اجازه نداده، نه اینکه کاربر لغو کرده باشد
+const QUICK_ABORT_MS = 300;
+// اگر پنجره‌ی سیستم تا این زمان جواب ندهد، پنجره‌ی خودمان هم زیرش باز می‌شود
+const SHARE_TIMEOUT_MS = 1500;
+
+/**
+ * navigator.share با جواب قابل دیدن در همه‌ی حالت‌ها.
+ * onFail وقتی صدا زده می‌شود که اشتراک رد شد، خیلی زود لغو شد یا گیر کرد (late: بعد از مهلت).
+ * خروجی: Promise با 'shared' یا 'cancelled' یا 'failed'
+ */
+export function systemShare(data, { onFail, onLate } = {}) {
+  const t0 = performance.now();
+  let timer = 0;
+  return new Promise((resolve) => {
+    let p;
+    try {
+      p = Promise.resolve(navigator.share(data));
+    } catch (err) {
+      p = Promise.reject(err);
+    }
+    timer = setTimeout(() => onLate?.(), SHARE_TIMEOUT_MS);
+    p.then(
+      () => { clearTimeout(timer); resolve('shared'); },
+      (err) => {
+        clearTimeout(timer);
+        if (err?.name === 'AbortError' && performance.now() - t0 >= QUICK_ABORT_MS) return resolve('cancelled');
+        onFail?.(err);
+        resolve('failed');
+      },
+    );
+  });
+}
+
 // باید همزمان داخل رویداد کلیک صدا زده شود
 export function share(item) {
+  if (isDesktop()) return openSheet(item);
   const entry = image(item, item.formats[0]);
   if (entry.blob && navigator.canShare && navigator.share) {
     const file = fileOf(item, item.formats[0], entry.blob);
@@ -515,9 +559,18 @@ export function share(item) {
     let ok = false;
     try { ok = navigator.canShare(data); } catch { /* ignore */ }
     if (ok) {
-      navigator.share(data).catch((err) => {
-        // لغو توسط کاربر بی‌صدا؛ هر خطای دیگر (مثلاً مرورگر داخل برنامه‌ها) پنجره‌ی اشتراک را باز می‌کند
-        if (err?.name !== 'AbortError') openSheet(item);
+      // پنجره‌ای که به خاطر گیر کردن یا رد شدن اشتراک سیستم باز شده
+      let fallback = null;
+      const openFallback = () => {
+        if (fallback && openState === fallback) return;
+        openSheet(item);
+        fallback = openState;
+      };
+      systemShare(data, { onFail: openFallback, onLate: openFallback }).then((r) => {
+        if (r === 'failed') return;
+        // اشتراک واقعا انجام یا توسط کاربر لغو شد؛ پنجره‌ی پشتیبان دیگر لازم نیست
+        if (fallback && openState === fallback) closeSheet();
+        if (r === 'shared') toast('ممنون که به اشتراک گذاشتید!');
       });
       return;
     }
@@ -599,7 +652,7 @@ export function openSheet(item) {
       </div>` : ''}
       <div class="sheet-preview" data-format="${item.formats[0]}"><img alt="تصویر برای اشتراک‌گذاری" hidden><span class="sheet-wait">در حال ساختن تصویر…</span></div>
       <div class="sheet-actions">
-        <button class="btn btn-pull sheet-native" type="button" data-act="native" hidden>${icon('share')}اشتراک‌گذاری</button>
+        <button class="btn btn-pull sheet-native" type="button" data-act="native" hidden>${icon('share')}اشتراک با برنامه‌های سیستم</button>
         <a class="btn" data-act="download" download="${item.filename}.png" aria-disabled="true">${icon('download')}دانلود تصویر</a>
         <button class="btn" type="button" data-act="copy">${icon('link')}کپی لینک</button>
       </div>
@@ -664,11 +717,9 @@ export function openSheet(item) {
         const withFile = { ...data, files: [fileOf(item, format, current)] };
         try { if (navigator.canShare?.(withFile)) Object.assign(data, withFile); } catch { /* ignore */ }
       }
-      try {
-        await navigator.share(data);
-      } catch (err) {
-        if (err?.name !== 'AbortError') toast('اشتراک‌گذاری باز نشد؛ از دکمه‌های پایین استفاده کنید.');
-      }
+      const fail = () => toast('اشتراک‌گذاری سیستم باز نشد؛ از دکمه‌های دیگر استفاده کنید.');
+      const r = await systemShare(data, { onFail: fail, onLate: () => toast('اگر پنجره‌ی سیستم باز نشد، از دکمه‌های دیگر استفاده کنید.') });
+      if (r === 'shared') toast('ممنون که به اشتراک گذاشتید!');
     }
   });
 

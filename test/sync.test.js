@@ -38,7 +38,7 @@ test('همگام‌سازی دوطرفه، حل تداخل و خودتوانی',
   await vote(intlUrl, 'abroad-user-1', 'original', 'pull');
   await vote(intlUrl, 'abroad-user-2', 'original', 'stay');
   await vote(irUrl, 'iran-user-1', 'original', 'pull');
-  await vote(irUrl, 'iran-user-2', 'tea', 'stay');
+  await vote(irUrl, 'iran-user-2', 'gallery', 'stay');
   // یک کاربر روی هر دو سرور به یک مرحله رأی داده؛ رأی بعدی (روی ایران) باید برنده شود
   await vote(intlUrl, 'traveler-001', 'four', 'stay');
   await new Promise((r) => setTimeout(r, 5));
@@ -54,7 +54,7 @@ test('همگام‌سازی دوطرفه، حل تداخل و خودتوانی',
   assert.deepEqual(a.levels, b.levels);
   assert.deepEqual(a.levels.original, { pull: 2, stay: 1 });
   assert.deepEqual(a.levels.four, { pull: 1, stay: 0 });
-  assert.deepEqual(a.levels.tea, { pull: 0, stay: 1 });
+  assert.deepEqual(a.levels.gallery, { pull: 0, stay: 1 });
   assert.equal(a.players, 5);
   assert.equal(b.players, 5);
 
@@ -156,7 +156,7 @@ test('endpointهای همگام‌سازی بدون کلید درست بسته�
   const res = await fetch(`${url}/api/sync/apply`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${SECRET}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rows: [{ session: 'x', level: 'nope' }, { session: 'valid-session-1', level: 'tea', choice: 'pull', created_at: 1, updated_at: 1, origin: 'ir' }] }),
+    body: JSON.stringify({ rows: [{ session: 'x', level: 'nope' }, { session: 'valid-session-1', level: 'gallery', choice: 'pull', created_at: 1, updated_at: 1, origin: 'ir' }] }),
   });
   assert.deepEqual(await res.json(), { region: 'intl', applied: 1, skipped: 0, invalid: 1 });
   await close(app);
