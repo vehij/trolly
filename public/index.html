@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>دردسرهای سوزن‌بان</title>
+  <meta name="description" content="دوراهی‌های اخلاقی عجیب و خنده‌دار: اهرم را می‌کشید یا نه؟ تصمیم بگیرید و ببینید بقیه‌ی مردم چه کردند.">
+  <meta name="theme-color" content="#F5EEDF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16141E" media="(prefers-color-scheme: dark)">
+  <meta property="og:title" content="دردسرهای سوزن‌بان">
+  <meta property="og:description" content="اهرم دست شماست. می‌کشید یا کاری نمی‌کنید؟ ببینید بقیه چه تصمیمی گرفتند.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preload" href="/fonts/estedad-arabic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/style.css">
+  <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+  <div id="loader" class="loader" aria-live="polite">
+    <svg class="loader-art" viewBox="0 0 420 150" aria-hidden="true">
+      <g class="ld-ties">
+        <line x1="20" y1="112" x2="20" y2="136"/><line x1="58" y1="112" x2="58" y2="136"/><line x1="96" y1="112" x2="96" y2="136"/>
+        <line x1="134" y1="112" x2="134" y2="136"/><line x1="172" y1="112" x2="172" y2="136"/><line x1="210" y1="112" x2="210" y2="136"/>
+        <line x1="248" y1="112" x2="248" y2="136"/><line x1="286" y1="112" x2="286" y2="136"/><line x1="324" y1="112" x2="324" y2="136"/>
+        <line x1="362" y1="112" x2="362" y2="136"/><line x1="400" y1="112" x2="400" y2="136"/>
+      </g>
+      <path class="ld-rail" d="M0 118 H420"/>
+      <path class="ld-rail" d="M0 130 H420"/>
+      <g class="ld-trolley">
+        <path pathLength="1" class="ld-line ld-fill" d="M-66 100 V52 Q-66 40 -54 40 H58 Q68 40 68 52 V100 Z"/>
+        <path pathLength="1" class="ld-line" d="M-62 32 H62 Q66 32 66 36 V40 H-66 V36 Q-66 32 -62 32 Z"/>
+        <path pathLength="1" class="ld-line" d="M-54 52 H-36 V74 H-54 Z M-30 52 H-12 V74 H-30 Z M-6 52 H12 V74 H-6 Z M18 52 H36 V74 H18 Z"/>
+        <path pathLength="1" class="ld-line" d="M44 52 H62 V100 H44 Z M53 52 V100"/>
+        <path pathLength="1" class="ld-line" d="M-66 82 H68"/>
+        <path pathLength="1" class="ld-line" d="M26 32 L56 -6"/>
+        <circle pathLength="1" class="ld-line ld-wheel" cx="-36" cy="110" r="10"/>
+        <circle pathLength="1" class="ld-line ld-wheel" cx="38" cy="110" r="10"/>
+        <path pathLength="1" class="ld-line ld-spoke" d="M-43 110 H-29 M-36 103 V117"/>
+        <path pathLength="1" class="ld-line ld-spoke s2" d="M31 110 H45 M38 103 V117"/>
+      </g>
+      <g class="ld-puffs"><circle cx="0" cy="0" r="7"/><circle cx="0" cy="0" r="9"/><circle cx="0" cy="0" r="6"/></g>
+    </svg>
+    <div class="loader-title">دردسرهای سوزن‌بان</div>
+    <div class="loader-hint">در حال آماده کردن ریل‌ها…</div>
+  </div>
+
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="دردسرهای سوزن‌بان — صفحه‌ی اول">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><path class="ln" d="M8 34 H32"/><rect class="sh f-ink" x="12" y="29" width="16" height="6" rx="2"/><path class="ln lever-stick" d="M20 30 L27 9"/><circle class="sh f-accent" cx="27.6" cy="7.6" r="4.6"/></svg>
+      <span>سوزن‌بان</span>
+    </a>
+    <div class="level-head">
+      <div class="game-title">دردسرهای سوزن‌بان</div>
+      <div class="level-sub" id="levelSub"></div>
+    </div>
+    <div class="tools">
+      <div class="deaths" id="deaths" title="تعداد کل تلفات شما" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ln" d="M5 11 Q5 3 12 3 Q19 3 19 11 Q19 14 16 15 L16 19 L8 19 L8 15 Q5 14 5 11Z"/><circle class="ink" cx="9.4" cy="10.4" r="1.8"/><circle class="ink" cx="14.6" cy="10.4" r="1.8"/><path class="ln" d="M10.5 19 V16.5 M13.5 19 V16.5"/></svg>
+        <span class="deaths-n">۰</span>
+      </div>
+      <button class="icon-btn" id="soundBtn" type="button" aria-label="صدا">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ln" d="M4 9.5 H8 L13 5 V19 L8 14.5 H4 Z"/><path class="ln wave w1" d="M16 9.5 Q18 12 16 14.5"/><path class="ln wave w2" d="M18.6 7 Q22.4 12 18.6 17"/><path class="ln mute" d="M16.5 9.5 L21.5 14.5 M21.5 9.5 L16.5 14.5"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="progress" id="progress" hidden>
+    <div class="progress-rail"><span class="progress-fill"></span><span class="progress-dot"></span></div>
+  </div>
+
+  <main id="app"></main>
+
+  <div class="result-bar" id="resultBar" aria-live="polite">
+    <div class="rb-inner">
+      <svg class="pie" viewBox="0 0 36 36" aria-hidden="true">
+        <circle class="pie-bg" cx="18" cy="18" r="15.915"/>
+        <circle class="pie-fg" cx="18" cy="18" r="15.915"/>
+      </svg>
+      <div class="rb-text">
+        <div class="rb-main"></div>
+        <div class="rb-sub"></div>
+      </div>
+      <div class="rb-deaths"></div>
+      <button class="btn btn-next" id="nextBtn" type="button">بعدی <span class="arrow">←</span></button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+  <noscript><p class="noscript">برای بازی، جاوااسکریپت مرورگر را روشن کنید.</p></noscript>
+</body>
+</html>

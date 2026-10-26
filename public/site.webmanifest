@@ -1,0 +1,11 @@
+{
+  "name": "دردسرهای سوزن‌بان",
+  "short_name": "سوزن‌بان",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5EEDF",
+  "theme_color": "#F5EEDF",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
