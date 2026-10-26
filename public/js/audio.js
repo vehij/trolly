@@ -7,7 +7,10 @@ let rumble = null;
 let enabled = true;
 let unlocked = false;
 let silent = null;
+let watch = 0;
 const unlockListeners = new Set();
+const resetListeners = new Set();
+const runningListeners = new Set();
 const wantsAudio = new Set([() => enabled]);
 
 try {
@@ -17,28 +20,81 @@ try {
 // آیفون و آیپد (آیپد جدید خودش را مک معرفی می‌کند)
 const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const anyAudio = () => [...wantsAudio].some((f) => f());
+const notify = (set) => {
+  for (const fn of set) {
+    try { fn(); } catch { /* ignore */ }
+  }
+};
 
-function create() {
-  if (ctx) return ctx;
+// کانتکست و گراف صدا (حجم اصلی، گذرگاه موسیقی) را می‌سازد؛ بافرهای سنگین بعداً و فقط وقت نیاز ساخته می‌شوند
+function build() {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
-  ctx = new AC({ latencyHint: 'playback' });
-  master = ctx.createGain();
+  let c;
+  try {
+    c = new AC({ latencyHint: 'playback' });
+  } catch {
+    try { c = new AC(); } catch { return null; }
+  }
+  ctx = c;
+  master = c.createGain();
   master.gain.value = 0.55;
-  master.connect(ctx.destination);
-  musicBus = ctx.createGain();
-  musicBus.connect(ctx.destination);
-  noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.5, ctx.sampleRate);
-  const d = noiseBuf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  return ctx;
+  master.connect(c.destination);
+  musicBus = c.createGain();
+  musicBus.connect(c.destination);
+  noiseBuf = null;
+  rumble = null;
+  duckUntil = 0;
+  // iOS بعد از تماس، اشتراک‌گذاری یا رفتن به برنامه‌ی دیگر حالت غیراستاندارد interrupted می‌دهد
+  c.addEventListener('statechange', () => {
+    if (c === ctx) onState();
+  });
+  return c;
+}
+
+function create() {
+  return ctx || build();
+}
+
+// کانتکست بسته شده یا گیر کرده است: کانتکست تازه با همان تنظیمات صدا ساخته می‌شود
+function rebuild() {
+  const old = ctx;
+  clearTimeout(watch);
+  watch = 0;
+  ctx = null;
+  if (!build()) {
+    ctx = old;
+    return false;
+  }
+  if (old && old.state !== 'closed') old.close().catch(() => {});
+  notify(resetListeners);
+  return true;
+}
+
+function noiseBuffer() {
+  if (!noiseBuf && ctx) {
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.5, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  return noiseBuf;
+}
+
+// پخش یک بافر خالی، ترفند قدیمی باز کردن قفل صدا در iOS
+function kick() {
+  try {
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch { /* ignore */ }
 }
 
 function ensure() {
   if (!enabled) return null;
   if (!create()) return null;
   // بیرون از لمس کاربر resume در iOS کاری نمی‌کند؛ بعد از اولین لمس (unlock) دوباره امتحان می‌شود
-  if (ctx.state !== 'running' && unlocked) ctx.resume().catch(() => {});
+  if (ctx.state !== 'running' && unlocked) wake(false);
   return ctx;
 }
 
@@ -63,48 +119,85 @@ function playbackSession() {
   if (silent.paused) silent.play().catch(() => {});
 }
 
+// صدا را اگر لازم باشد دوباره راه می‌اندازد. gesture یعنی داخل لمس یا کلیک کاربر صدا زده شده
+// (در iOS فقط آنجا resume جواب می‌دهد)؛ بیرون از لمس هم امتحان می‌شود چون بعضی مرورگرها اجازه می‌دهند
+function wake(gesture) {
+  if (!unlocked || !ctx || document.hidden || !anyAudio()) return;
+  if (gesture) playbackSession();
+  if (ctx.state === 'closed' && !rebuild()) return;
+  // هر حالتی غیر از running (suspended، interrupted در iOS) یعنی باید resume شود
+  if (ctx.state === 'running') return;
+  const c = ctx;
+  c.resume().catch(() => {});
+  if (!gesture) return;
+  kick();
+  if (watch) return;
+  // اگر resume داخل لمس هم بعد از ۸۰۰ میلی‌ثانیه جواب نداد، کانتکست گیر کرده و از نو ساخته می‌شود
+  watch = setTimeout(() => {
+    watch = 0;
+    if (c !== ctx || c.state === 'running' || document.hidden) return;
+    if (rebuild()) ctx.resume().catch(() => {});
+  }, 800);
+}
+
+function onState() {
+  if (ctx.state === 'running') {
+    clearTimeout(watch);
+    watch = 0;
+    notify(runningListeners);
+  } else if (!document.hidden) {
+    // مثلا پایان وقفه‌ی iOS: اگر مرورگر اجازه بدهد همین حالا برمی‌گردد، وگرنه با لمس بعدی
+    wake(false);
+  }
+}
+
 // باید همزمان (synchronous) داخل رویداد لمس/کلیک صدا زده شود
 function unlock() {
   if (!anyAudio() || !create()) return;
-  playbackSession();
-  if (ctx.state !== 'running') ctx.resume().catch(() => {});
-  if (!unlocked) {
-    // پخش یک بافر خالی، ترفند قدیمی باز کردن قفل صدا در iOS
-    const src = ctx.createBufferSource();
-    src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
-    src.connect(ctx.destination);
-    src.start(0);
-    unlocked = true;
-    for (const fn of unlockListeners) {
-      try { fn(); } catch { /* ignore */ }
-    }
-  }
+  if (unlocked) return wake(true);
+  unlocked = true;
+  wake(true);
+  notify(unlockListeners);
+  // بافر نویز بعد از لمس و بیرون از آن ساخته می‌شود تا شروع موسیقی معطلش نشود
+  setTimeout(noiseBuffer, 300);
 }
-// این شنونده‌ها می‌مانند تا اگر iOS صدا را قطع کرد (تماس، رفتن به پس‌زمینه) با لمس بعدی برگردد
+// این شنونده‌ها روی همه‌ی لمس‌ها می‌مانند، نه فقط اولی: اگر iOS صدا را قطع کرد
+// (تماس، اشتراک‌گذاری، رفتن به پس‌زمینه یا قفل صفحه) با لمس بعدی برمی‌گردد
 for (const type of ['pointerdown', 'touchend', 'click', 'keydown']) {
   window.addEventListener(type, unlock, { capture: true, passive: true });
 }
 
-document.addEventListener('visibilitychange', () => {
-  if (!ctx) return;
-  if (document.hidden) {
-    ctx.suspend().catch(() => {});
-    silent?.pause();
-  } else if (unlocked && anyAudio()) {
-    ctx.resume().catch(() => {});
-    if (silent && !navigator.audioSession) silent.play().catch(() => {});
-  }
-});
+// در پس‌زمینه کل صدا معلق می‌شود (موسیقی هم مکث می‌کند) و در برگشت دوباره راه می‌افتد
+function sleep() {
+  clearTimeout(watch);
+  watch = 0;
+  silent?.pause();
+  if (ctx?.state === 'running') ctx.suspend().catch(() => {});
+}
+function revive() {
+  if (document.hidden || !unlocked) return;
+  wake(false);
+  if (silent && anyAudio() && !navigator.audioSession) silent.play().catch(() => {});
+}
+document.addEventListener('visibilitychange', () => (document.hidden ? sleep() : revive()));
+window.addEventListener('pagehide', sleep);
+// pageshow برای برگشت از bfcache (persisted) هم صدا زده می‌شود
+window.addEventListener('pageshow', revive);
+window.addEventListener('focus', revive);
 
 // برای موسیقی: کانتکست مشترک، گذرگاه موسیقی و وضعیت قفل
 export const shared = {
   get ctx() { return ctx; },
   get musicBus() { return musicBus; },
-  get noise() { return noiseBuf; },
+  get noise() { return noiseBuffer(); },
   get unlocked() { return unlocked; },
   create,
   unlock,
   onUnlock(fn) { unlockListeners.add(fn); },
+  // کانتکست تازه جای قبلی را گرفت
+  onReset(fn) { resetListeners.add(fn); },
+  // کانتکست دوباره در حالت running است
+  onRunning(fn) { runningListeners.add(fn); },
   wants(fn) { wantsAudio.add(fn); },
   release() {
     if (!anyAudio()) silent?.pause();
@@ -150,7 +243,7 @@ function tone({ freq = 440, to, type = 'sine', dur = 0.2, vol = 0.3, attack = 0.
 function noise({ dur = 0.2, vol = 0.3, filter = 'lowpass', freq = 1200, to, q = 1, delay = 0 }) {
   const t = now() + delay;
   const src = ctx.createBufferSource();
-  src.buffer = noiseBuf;
+  src.buffer = noiseBuffer();
   const f = ctx.createBiquadFilter();
   f.type = filter;
   f.frequency.setValueAtTime(freq, t);
@@ -211,7 +304,7 @@ const SOUNDS = {
     stopRumble();
     const t = now();
     const src = ctx.createBufferSource();
-    src.buffer = noiseBuf;
+    src.buffer = noiseBuffer();
     src.loop = true;
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
@@ -245,8 +338,8 @@ function stopRumble() {
 export function play(name, opts) {
   if (!enabled) return;
   if (!ensure()) return;
-  // پیش از اولین لمس کانتکست معلق است؛ صداهای صف‌شده نباید بعداً یک‌جا پخش شوند
-  if (ctx.state !== 'running' && !unlocked) return;
+  // پیش از اولین لمس یا در پس‌زمینه کانتکست معلق است؛ صداهای صف‌شده نباید بعداً یک‌جا پخش شوند
+  if (ctx.state !== 'running' && (!unlocked || document.hidden)) return;
   try {
     SOUNDS[name]?.(opts);
     if (name !== 'hover' && !name.startsWith('rumble')) duck(name === 'boom' ? 1.4 : 0.45);
