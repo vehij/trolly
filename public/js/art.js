@@ -221,29 +221,6 @@ export const ITEMS = {
     w: 26, h: 54, humans: 0, kind: 'metal', sfx: 'clank',
   }),
 
-  tea: () => ({
-    svg: g(
-      ell(0, -2.4, 17, 3.6, 'sh f-paper2') +
-      p('M-7.5 -31 Q-9.6 -21 -4.8 -14.6 Q-8.4 -8.4 -6.4 -4.4 L6.4 -4.4 Q8.4 -8.4 4.8 -14.6 Q9.6 -21 7.5 -31Z', 'sh f-tea') +
-      p('M-7 -27 L7 -27', 'ln thin') + ell(0, -31, 7.5, 1.7, 'sh') +
-      p('M-3 -37 Q-6 -42 -3 -47 Q0 -52 -3 -57', 'ln thin steam') +
-      p('M3 -38 Q0 -43 3 -48 Q6 -53 3 -58', 'ln thin steam s2') +
-      rect(12, -9, 6.5, 6.5, 1.2) + rect(15.5, -15.6, 6.5, 6.5, 1.2), 'scale(1.25)'),
-    w: 44, h: 72, humans: 0, kind: 'glass', sfx: 'glass', burst: 'tea',
-  }),
-
-  piggy: () => ({
-    svg: g(
-      rect(-12, -9, 5, 9, 1.5, 'sh f-rose') + rect(6, -9, 5, 9, 1.5, 'sh f-rose') +
-      p('M18 -20 q6 -1 4 -6 q-4 -1 -1.6 3.4', 'ln') +
-      ell(0, -19, 19, 13.5, 'sh f-rose') +
-      ell(-18, -20, 4.4, 5.4, 'sh f-rose') + p('M-19.4 -21.4 L-19.4 -21 M-16.8 -21.4 L-16.8 -21', 'ln eye') +
-      p('M-9 -30 L-6 -38 L-1.6 -31.4', 'sh f-rose') + circ(-10, -23, 1.3, 'ink') +
-      p('M-3.6 -31.4 L5 -31.4', 'ln thick') +
-      g(circ(0, 0, 5.4, 'sh f-gold') + p('M0 -2.6 L0 2.6', 'ln thin'), 'translate(1 -42)', 'coin-float'), 'scale(1.15)'),
-    w: 50, h: 58, humans: 0, kind: 'ceramic', sfx: 'coins', burst: 'coins',
-  }),
-
   mystery: () => ({
     svg:
       rect(-18, -34, 36, 34, 2.5, 'sh f-mustard') +
@@ -403,6 +380,63 @@ export const ITEMS = {
       g(p('M-8 -4 Q0 -11 8 -4 M-13 -9 Q0 -20 13 -9 M-3.4 0 Q0 -3 3.4 0', 'ln thin wifi'), 'translate(0 -70)'),
     w: 36, h: 84, humans: 0, kind: 'glass', sfx: 'glass', burst: 'paper',
   }),
+
+  // گوشی با گالری ده سال عکس، و ابر بکاپ خط‌خورده بالایش
+  gallery: () => {
+    const fills = ['sky', 'rose', 'mustard', 'sage', 'lilac', 'gold'];
+    let grid = '';
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 3; c++) {
+        const i = r * 3 + c;
+        const x = -12.6 + c * 8.8;
+        const y = -52 + r * 8.8;
+        grid += rect(x, y, 7.6, 7.6, 1, `sh thin f-${fills[(i * 5) % fills.length]}`);
+        if (i % 3 === 0) grid += p(`M${x + 1} ${y + 6.6} L${x + 3.4} ${y + 3.4} L${x + 5} ${y + 5.2} L${x + 6.6} ${y + 3.8}`, 'ln thin');
+        else if (i % 3 === 1) grid += circ(x + 3.8, y + 3.4, 1.4, 'sh thin skin');
+      }
+    }
+    return {
+      svg: g(
+        p('M-13 0 L-7 -10 L7 -10 L13 0Z', 'sh f-paper2') +
+        rect(-17, -66, 34, 58, 5, 'sh f-ink') + rect(-14, -61, 28, 47, 2, 'scr') +
+        txt(0, -54.6, 'گالری', 5.5, 'tx') + grid +
+        g(p('M-9 4 Q-14 4 -14 -1 Q-14 -6 -9 -5.6 Q-8 -11 -1 -11 Q6 -11 7 -5 Q13 -5 13 0 Q13 4 8 4Z', 'sh f-paper') +
+          p('M-11 -9 L11 6', 'ln thick ban'), 'translate(0 -82)') +
+        g(p('M0 3 C-6 -1 -5 -5 -2.6 -5 C-1.2 -5 -0.4 -4 0 -3.2 C0.4 -4 1.2 -5 2.6 -5 C5 -5 6 -1 0 3Z', 'sh f-accent'), 'translate(21 -62)', 'heart'), 'scale(1.3)'),
+      w: 56, h: 124, humans: 0, kind: 'glass', sfx: 'glass', burst: 'photos',
+    };
+  },
+
+  // خانه‌ی خالی: پنجره با پرده، گلدان لب پنجره، در و پلاک
+  house: () => ({
+    svg: g(
+      rect(15, -70, 8, 18, 1, 'sh f-tea') +
+      rect(-27, -44, 54, 44, 1.5, 'sh f-mustard') +
+      p('M-33 -42 L0 -70 L33 -42Z', 'sh f-tea') +
+      p('M-24 -48 L0 -64 M24 -48 L8 -58', 'ln thin') +
+      rect(-21, -36, 19, 17, 1.5, 'sh f-sky') + p('M-11.5 -36 L-11.5 -19 M-21 -27.5 L-2 -27.5', 'ln thin') +
+      p('M-21 -36 L-15 -36 Q-16.4 -28 -21 -22Z', 'sh thin f-rose') + p('M-2 -36 L-8 -36 Q-6.6 -28 -2 -22Z', 'sh thin f-rose') +
+      rect(-23, -19.5, 23, 3, 1, 'sh thin f-wood') +
+      g(p('M-14.5 -19.5 L-15.5 -25 L-7.5 -25 L-8.5 -19.5Z', 'sh thin f-tea') +
+        p('M-11.5 -25 Q-16 -30 -14 -34 Q-10.6 -31 -11.5 -25 M-11.5 -25 Q-7 -31 -4.4 -31 Q-5.4 -27 -11.5 -25', 'sh thin f-sage'), '', 'flag') +
+      rect(5, -28, 13, 28, 1.5, 'sh f-wood') + circ(15, -14, 1.2, 'ink') +
+      rect(7.5, -24, 8, 4.6, 1, 'sh thin f-paper') +
+      rect(3, -2, 17, 2.4, 1, 'sh thin f-red'), 'scale(1.3)'),
+    w: 90, h: 96, humans: 0, kind: 'wall', sfx: 'thud', burst: 'bricks',
+  }),
+
+  // ته‌دیگ با تابلوی ممنوع کنارش
+  notahdig: (o, i, seed) => {
+    const t = ITEMS.tahdig(o, i, seed);
+    return {
+      ...t,
+      svg: g(t.svg, 'translate(-12 0)') +
+        p('M36 0 L36 -36', 'ln thick') +
+        circ(36, -52, 17, 'sh f-paper') + circ(36, -52, 14, 'ln ban') + p('M26 -62 L46 -42', 'ln ban') +
+        txt(36, -74, 'ممنوع', 9, 'tx red'),
+      w: 100, h: 84,
+    };
+  },
 
   // ───────── مرحله‌های نسخه‌ی ۲ ─────────
 
@@ -786,6 +820,7 @@ export function particles(type, n = 10) {
       case 'rice': s = ell(0, 0, 2.6, 1.2, 'sh f-paper'); break;
       case 'paper': s = rect(-4, -5, 8, 10, 1, 'sh f-paper'); break;
       case 'tea': s = circ(0, 0, 2.6, 'sh f-tea'); break;
+      case 'photos': s = rect(-4.5, -4.5, 9, 9, 1, `sh thin f-${['sky', 'rose', 'mustard', 'sage'][k % 4]}`); break;
       case 'water': s = circ(0, 0, 2.6, 'sh f-sky'); break;
       case 'bolts': s = k % 2 ? circ(0, 0, 3, 'sh f-gray') : rect(-4, -2, 8, 4, 1, 'sh f-gray'); break;
       case 'bricks': s = rect(-5, -3, 10, 6, 1, 'sh f-tea'); break;
