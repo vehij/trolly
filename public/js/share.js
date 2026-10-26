@@ -1,6 +1,6 @@
 // اشتراک‌گذاری: ساخت تصویر نتیجه و مرحله با canvas، اشتراک‌گذاری بومی گوشی و پنجره‌ی اشتراک برای بقیه
 import * as A from './art.js';
-import { DEFAULT_LABELS } from './levels.js';
+import { DEFAULT_LABELS, MIN_VOTES, hasChoice } from './levels.js';
 import { createScene, W as SCENE_W, H as SCENE_H } from './scene.js';
 
 const fa = A.fa;
@@ -84,7 +84,8 @@ function sceneSnapshot(level) {
   }));
   scene.destroy();
   host.remove();
-  svg.querySelector('.trolley-g')?.setAttribute('transform', 'translate(830 160)');
+  const trolleyG = svg.querySelector('.trolley-g');
+  trolleyG?.setAttribute('transform', `translate(${trolleyG.getAttribute('data-rest') || '830 160'})`);
   for (const n of svg.querySelectorAll('.measure, .preview-line, .fx')) n.remove();
   for (const n of svg.querySelectorAll('[pathLength]')) n.removeAttribute('pathLength');
   return { inner: svg.innerHTML, labels };
@@ -365,15 +366,17 @@ export async function renderLevel(data, format = 'story') {
   const bottom = h - (story ? 380 : 290);
   const labels = { ...DEFAULT_LABELS, ...data.level.labels };
   const total = data.stat ? data.stat.pull + data.stat.stay : 0;
-  const pct = total >= 3 ? Math.round((data.stat.pull / total) * 100) : null;
+  const pct = hasChoice(data.level) && total >= MIN_VOTES ? Math.round((data.stat.pull / total) * 100) : null;
   const statH = story ? 170 : 140;
   const btnH = story ? 104 : 86;
   // دو دکمه‌ی انتخاب مثل خود بازی، و اگر رأی کافی هست، درصد کسانی که اهرم را کشیدند
   if (y + btnH + (pct !== null ? statH : 0) + 30 < bottom) {
     const gap = 30;
-    const bw = (w - 160 - gap) / 2;
-    [[labels.pull, C.accent, C.onAccent], [labels.stay, C.paper, C.ink]].forEach(([label, fill, color], i) => {
-      const bx = cx + gap / 2 + (i === 0 ? 0 : -bw - gap);
+    const one = !hasChoice(data.level);
+    const bw = one ? (w - 160) / 2 : (w - 160 - gap) / 2;
+    const buttons = [[labels.pull, C.accent, C.onAccent], [labels.stay, C.paper, C.ink]].slice(0, one ? 1 : 2);
+    buttons.forEach(([label, fill, color], i) => {
+      const bx = one ? cx - bw / 2 : cx + gap / 2 + (i === 0 ? 0 : -bw - gap);
       card(ctx, bx, y, bw, btnH, { r: 30, fill, line: 5, shadow: 8 });
       textBlock(ctx, label, { x: bx + bw / 2, y: y + btnH / 2 - (story ? 26 : 22), maxW: bw - 40, size: story ? 40 : 34, weight: 800, color, maxLines: 1, min: 0.6 });
     });

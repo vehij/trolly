@@ -30,6 +30,8 @@ function face(mood) {
       return circ(-3.4, 0, 2.4) + circ(3.4, 0, 2.4) + circ(-3.4, 0.3, 0.9, 'ink') + circ(3.4, 0.3, 0.9, 'ink') + p('M-2 5 L2 5');
     case 'neutral':
       return eyes + p('M-2.4 4.6 L2.4 4.6');
+    case 'warm':
+      return p('M-4.8 0.6 Q-3.2 -1.2 -1.6 0.6 M1.6 0.6 Q3.2 -1.2 4.8 0.6') + p('M-2.8 4 Q0 6.4 2.8 4') + circ(-5.6, 3.4, 1.7, 'blush') + circ(5.6, 3.4, 1.7, 'blush');
     case 'worried':
       return eyes + p('M-5 -3.8 L-1.8 -2.8 M5 -3.8 L1.8 -2.8') + p('M-2.6 5 Q0 3.4 2.6 5');
     case 'scared':
@@ -72,6 +74,9 @@ function headShape({ hair = 'short', mood = 'scared', facial, glasses, shades, g
     case 'cap':
       front = p('M-9.6 -3.4 Q-10 -14.5 0 -14.5 Q10 -14.5 9.6 -3.4Z', 'sh f-navy') + p('M-12.5 -3.4 L12.5 -3.4', 'ln thick') + circ(0, -9, 2, 'sh f-gold');
       break;
+    case 'helmet':
+      front = p('M-10.4 -2.6 Q-11 -15 0 -15 Q11 -15 10.4 -2.6Z', 'sh f-mustard') + p('M-13 -2.6 L13 -2.6', 'ln thick') + p('M0 -15 L0 -8 M-6 -13.4 L-5 -7 M6 -13.4 L5 -7', 'ln thin');
+      break;
     case 'beret':
       front = p('M-10.5 -4 Q-12 -13 0 -13.5 Q12 -13 10.5 -4 Q0 -6.6 -10.5 -4Z', 'sh f-accent') + p('M0 -13.5 L1 -16.5', 'ln');
       break;
@@ -106,7 +111,7 @@ export function human(o = {}) {
   s += ARMS[arms] ?? ARMS.down;
   s += p('M-10 -44 Q-14 -30 -11 -20 L11 -20 Q14 -30 10 -44 Q0 -48.5 -10 -44Z', `sh f-${outfit}`);
   if (o.scarfTeam) s += p('M-9.5 -45 Q0 -40.5 9.5 -45 L9.5 -41 Q0 -36.5 -9.5 -41Z', `sh f-${o.scarfTeam}`) + rect(3, -41, 4.5, 13, 1, `sh f-${o.scarfTeam}`) + p('M3 -35 L7.5 -35 M3 -32 L7.5 -32', 'ln thin');
-  if (o.tie) s += p('M0 -45 L-2 -38 L0 -30 L2 -38Z', 'sh f-gold');
+  if (o.tie) s += p('M0 -45 L-2 -38 L0 -30 L2 -38Z', `sh f-${o.tie === true ? 'gold' : o.tie}`);
   if (o.chain) s += p('M-6 -45 Q0 -36 6 -45', 'ln chain');
   if (tied) s += p('M-15 -36 Q0 -32.6 15 -36 M-15 -28.5 Q0 -25 15 -28.5', 'rope');
   s += g(headShape(o), `translate(0 -56.5) rotate(${lean})`);
@@ -142,7 +147,9 @@ export function lying(o = {}) {
   s += p('M-10.5 -19 Q-12 -25 -5 -25.5 L5 -25.5 Q12 -25 10.5 -19 L9.5 19 Q0 23 -9.5 19Z', `sh f-${outfit}`);
   s += p('M0 7 L0 19.5', 'ln thin');
   if (o.scarfTeam) s += p('M-10.6 -24 Q0 -20 10.6 -24 L10.6 -19.5 Q0 -15.5 -10.6 -19.5Z', `sh f-${o.scarfTeam}`) + rect(4, -20, 5, 12, 1, `sh f-${o.scarfTeam}`);
-  if (o.tie) s += p('M0 -25 L-2.4 -17 L0 -9 L2.4 -17Z', 'sh f-gold');
+  if (o.vest) s += p('M-10.4 -22 Q-11 -25 -6 -25.4 L-3 -25.4 L-4 18 Q-8 20 -9.6 18.6Z M10.4 -22 Q11 -25 6 -25.4 L3 -25.4 L4 18 Q8 20 9.6 18.6Z', `sh f-${o.vest}`) + p('M-10 -6 L-3.6 -6 M3.6 -6 L10 -6 M-9.8 4 L-3.8 4 M3.8 4 L9.8 4', 'ln stripe');
+  if (o.tie) s += p('M0 -25 L-2.4 -17 L0 -9 L2.4 -17Z', `sh f-${o.tie === true ? 'gold' : o.tie}`);
+  if (o.cardigan) s += p('M-3 -25.4 L0 -14 L3 -25.4', 'ln thin') + p('M0 -14 L0 19', 'ln thin') + circ(-2.4, -6, 1.2, 'ink') + circ(-2.4, 2, 1.2, 'ink') + circ(-2.4, 10, 1.2, 'ink');
   if (o.chain) s += p('M-6.5 -25 Q0 -15 6.5 -25', 'ln chain');
   if (o.blanket) s += p('M-12 -12 Q0 -15 12 -12 L11 21 Q0 25 -11 21Z', `sh f-${o.blanket}`) + p('M-8 -4 L8 -4 M-8 6 L8 6', 'ln thin');
   if (rope) s += p('M-12 -14 Q0 -10.4 12 -14 M-11.6 -6 Q0 -2.4 11.6 -6 M-11 2 Q0 5.6 11 2 M-10.6 10 Q0 13.6 10.6 10', 'rope');
@@ -158,7 +165,11 @@ const LY = { w: 24, h: 50 }; // ابعاد یک آدم دراز کشیده
 // ───────────────────────── آیتم‌ها ─────────────────────────
 // هر سازنده: (opts, index, seed) => { svg, w, h, humans, sfx, burst }
 export const ITEMS = {
-  person: (o, i, seed) => ({ svg: lying({ ...crowdLook(i + seed), mood: o.mood || 'scared', tilt: tiltFor(i) }), ...LY, humans: 1, kind: 'human' }),
+  person: (o, i, seed) => {
+    const svg = lying({ ...crowdLook(i + seed), mood: o.mood || 'scared', tilt: tiltFor(i) });
+    // آدم‌های «صد سال بعد» کم‌رنگ‌اند و کمی سوسو می‌زنند
+    return { svg: o.future ? g(svg, '', 'future') : svg, ...LY, humans: 1, kind: 'human' };
+  },
 
   you: (o, i) => ({
     svg: lying({ ...SWITCHMAN, mood: 'worried', tilt: tiltFor(i), prop: o.phone ? phoneSvg(0, -2) : '' }),
@@ -304,19 +315,6 @@ export const ITEMS = {
     w: 32, h: LY.h, humans: 1, kind: 'human',
   }),
 
-  crab: (o, i) => ({
-    svg: g(
-      p('M-9 -6 L-16 0 M-11 -9 L-19 -5 M9 -6 L16 0 M11 -9 L19 -5') +
-      p('M-12 -12 Q-20 -17 -19 -25 M12 -12 Q20 -17 19 -25') +
-      p('M-19 -25 q-6 -2 -3 -9 q2 3 6 2 q-1 4 -3 7Z', 'sh f-red claw') +
-      p('M19 -25 q6 -2 3 -9 q-2 3 -6 2 q1 4 3 7Z', 'sh f-red claw c2') +
-      ell(0, -11, 13.5, 8.5, 'sh f-red') +
-      p('M-4 -18 L-5 -25 M4 -18 L5 -25') + circ(-5, -26.4, 2.6) + circ(5, -26.4, 2.6) + circ(-5, -26, 1, 'ink') + circ(5, -26, 1, 'ink') +
-      p(i % 2 ? 'M-3 -8 Q0 -10.5 3 -8' : 'M-3 -9 Q0 -6.5 3 -9') +
-      p('M-14 -10 Q0 -6 14 -10', 'rope'), 'scale(1.05)'),
-    w: 40, h: 34, humans: 0, kind: 'animal', sfx: 'squeak',
-  }),
-
   cat: () => ({
     svg: g(
       p('M12 -5 Q28 -6 26 -21 Q24 -28 19 -23', 'ln thick tail') +
@@ -380,17 +378,6 @@ export const ITEMS = {
     w: 48, h: 62, humans: 0, kind: 'paper', sfx: 'paper', burst: 'paper',
   }),
 
-  books: () => ({
-    svg:
-      rect(-24, -11, 48, 11, 2, 'sh f-blue') + p('M-20 -6 L20 -6', 'ln thin') +
-      rect(-21, -22, 44, 11, 2, 'sh f-mustard') + txt(1, -13.6, 'شیمی', 6.4, 'tx') +
-      rect(-25, -33, 46, 11, 2, 'sh f-sage') + txt(-2, -24.6, 'تست زیست', 6.4, 'tx') +
-      rect(-19, -44, 40, 11, 2, 'sh f-rose') + txt(1, -35.6, 'جمع‌بندی', 6.4, 'tx') +
-      p('M-14 -44 L-14 -53 L4 -53 L4 -44', 'sh f-paper') + p('M-11 -50 L1 -50 M-11 -47 L-2 -47', 'ln thin') +
-      g(p('M0 0 L26 0 L30 2.4 L26 4.8 L0 4.8Z', 'sh f-mustard') + p('M26 0 L26 4.8', 'ln thin'), 'translate(-6 -60) rotate(-14)'),
-    w: 52, h: 66, humans: 0, kind: 'paper', sfx: 'paper', burst: 'paper',
-  }),
-
   dynamite: () => ({
     svg:
       rect(-30, -38, 8, 38, 1.5, 'sh f-paper2') + rect(22, -38, 8, 38, 1.5, 'sh f-paper2') +
@@ -417,33 +404,182 @@ export const ITEMS = {
     w: 36, h: 84, humans: 0, kind: 'glass', sfx: 'glass', burst: 'paper',
   }),
 
-  designer: () => ({
+  // ───────── مرحله‌های نسخه‌ی ۲ ─────────
+
+  // مرد کوله‌به‌دوش روی پل عابر (ایستاده؛ بعد از هل دادن در صحنه روی ریل می‌افتد)
+  backpacker: () => ({
+    svg: human({
+      hair: 'short', facial: 'beard', outfit: 'blue', mood: 'neutral', tied: false,
+      back:
+        rect(-22, -76, 44, 62, 9, 'sh f-sage') + p('M-22 -54 Q0 -48 22 -54', 'ln thin') +
+        ell(0, -79, 19, 6.4, 'sh f-mustard') + p('M-10 -84.6 L-10 -73.4 M10 -84.6 L10 -73.4', 'ln thin') +
+        rect(-28, -44, 8, 20, 3, 'sh f-sage') + rect(20, -44, 8, 20, 3, 'sh f-sage') + p('M-28 -36 L-20 -36 M20 -36 L28 -36', 'ln thin') +
+        txt(0, -60, '۴۰ کیلو', 7),
+    }) + p('M-7 -45 Q-8.6 -34 -6.4 -24 M7 -45 Q8.6 -34 6.4 -24', 'ln thick'),
+    w: 58, h: 88, humans: 1, kind: 'human',
+  }),
+
+  // ماهی‌های قرمز در تنگ
+  goldfish: () => {
+    const fish = [[-10, -18, 1], [8, -24, -1], [-4, -32, -1], [10, -12, 1], [-13, -28, 1]]
+      .map(([x, y, d], k) => g(
+        p('M-6 0 Q-1 -4.4 4 0 Q-1 4.4 -6 0Z', 'sh f-accent') + p('M4 0 L8.4 -3.4 L8.4 3.4Z', 'sh f-accent') + circ(-3.4, -0.6, 0.7, 'ink'),
+        `translate(${x} ${y}) scale(${d} 1)`, `fish${k % 2 ? ' f2' : ''}`))
+      .join('');
+    return {
+      svg: g(
+        ell(0, -1.6, 15, 3, 'sh f-paper2') +
+        p('M-12 -46 Q-26 -36 -24 -20 Q-21 -2 0 -2 Q21 -2 24 -20 Q26 -36 12 -46Z', 'sh f-glass') +
+        p('M-22.6 -34 Q0 -30 22.6 -34', 'ln thin') + fish +
+        ell(0, -46, 12, 3, 'sh f-glass') + p('M-17 -24 Q-17 -12 -10 -7', 'ln thin shine') +
+        p('M-23 -21 Q0 -15 23 -21', 'rope'), 'scale(1.4)'),
+      w: 72, h: 72, humans: 0, kind: 'glass', sfx: 'splash', burst: 'water', words: ['شلپ!'],
+    };
+  },
+
+  dog: () => ({
+    svg: g(
+      p('M12 -6 Q27 -8 25 -23', 'ln thick wag') +
+      ell(0, -14, 15, 13.5, 'sh f-bread') +
+      rect(-10, -9, 6.5, 9.5, 2.5, 'sh f-bread') + rect(3.5, -9, 6.5, 9.5, 2.5, 'sh f-bread') +
+      p('M-15 -17 Q0 -12 15 -17', 'rope') +
+      ell(0, -36, 11.5, 10.5, 'sh f-bread') +
+      p('M-8.6 -43.4 Q-18 -44 -16.4 -29 Q-12.4 -27.6 -9.6 -35Z', 'sh f-wood') +
+      p('M8.6 -43.4 Q18 -44 16.4 -29 Q12.4 -27.6 9.6 -35Z', 'sh f-wood') +
+      p('M-5 -38.6 L-5 -38.4 M5 -38.6 L5 -38.4', 'ln eye') + p('M-7.6 -42.6 L-3.4 -41.6 M7.6 -42.6 L3.4 -41.6', 'ln thin') +
+      ell(0, -30, 6.6, 4.6, 'sh f-paper2') + ell(0, -32.6, 2.4, 1.7, 'ink') +
+      p('M0 -31 L0 -28.8 M-3 -28.4 Q0 -26.2 3 -28.4', 'ln thin') + p('M-1.6 -27.8 Q0 -23 1.6 -27.8Z', 'sh f-rose') +
+      p('M-8.6 -25.6 Q0 -21.6 8.6 -25.6', 'ln collar') + circ(0, -22.4, 2.6, 'sh f-gold'), 'scale(1.3)'),
+    w: 54, h: 64, humans: 0, kind: 'animal', sfx: 'woof', words: ['واق؟!', 'تپ!'],
+  }),
+
+  // آدم‌های سلفی‌گیر؛ اولی تابلوی «ورود ممنوع» را کنارش دارد
+  selfie: (o, i, seed) => {
+    const look = crowdLook(i * 2 + seed + 1);
+    const arm = p('M-9 -21 Q-16 -30 -19 -42', 'ln') + g(rect(-4, -14, 8, 14, 1.6, 'sh f-ink') + rect(-2.6, -12.4, 5.2, 9.6, 0.8, 'scr'), 'translate(-19 -42) rotate(-20)');
+    const sign = i === 0
+      ? p('M24 26 L24 -46', 'ln') + circ(24, -55, 10, 'sh f-red') + rect(17.5, -57, 13, 4, 1, 'sh f-paper') +
+        rect(9, -42, 30, 10, 2, 'sh f-paper') + txt(24, -34.6, 'ورود ممنوع', 5.4)
+      : '';
+    return {
+      svg: sign + lying({ ...look, mood: i % 2 ? 'happy' : 'smug', tilt: tiltFor(i), side: arm }),
+      w: i === 0 ? 46 : 30, h: i === 0 ? 68 : 56, humans: 1, kind: 'human',
+    };
+  },
+
+  // کارگر راه‌آهن با کلاه ایمنی و جلیقه‌ی شب‌نما
+  worker: () => ({
     svg: lying({
-      hair: 'beret', outfit: 'lilac', glasses: true, facial: 'beard', mood: 'scared', tilt: -10,
-      prop: g(rect(-11, -7, 22, 15, 2, 'sh f-paper2') + p('M-7 2 L-1 2 Q2 2 2 -1 L2 -3 M4 -4 L8 1', 'ln thin') + p('M-13 8 L13 8', 'ln thick'), 'translate(0 -6)'),
+      hair: 'helmet', facial: 'mustache', outfit: 'blue', vest: 'mustard', mood: 'worried', tilt: -10,
+      side: g(p('M0 0 L0 22', 'ln thick') + p('M-6 -2 Q0 -8 6 -2 L4 1 Q0 -2 -4 1Z', 'sh f-gray'), 'translate(17 -4) rotate(18)'),
     }),
-    w: 30, h: LY.h, humans: 1, kind: 'human',
+    w: 34, h: 58, humans: 1, kind: 'human',
   }),
 
-  player: (o, i, seed) => ({
-    svg: lying({ ...crowdLook(i * 2 + seed + 1), mood: 'scared', tilt: tiltFor(i), prop: phoneSvg(0, -2) }),
-    ...LY, humans: 1, kind: 'human',
-  }),
+  // پراید (سه رنگ)
+  pride: (o, i) => {
+    const color = ['paper2', 'gray', 'sky'][i % 3];
+    return {
+      svg:
+        p('M-32 -11 L-32 -21 Q-32 -24 -28 -24 L-15 -25 L-7 -37.5 Q-6 -39 -3.5 -39 L23 -39 Q25.5 -39 26.4 -36.8 L31 -25 Q32 -24 32 -21 L32 -11 Q32 -8 29 -8 L-29 -8 Q-32 -8 -32 -11Z', `sh f-${color}`) +
+        p('M-5 -36 L4 -36 L4 -27 L-11 -27Z', 'sh f-glass') + p('M7 -36 L22.4 -36 L26.4 -27 L7 -27Z', 'sh f-glass') +
+        p('M5.5 -27 L5.5 -10 M-12 -24 L-12 -10', 'ln thin') + p('M9 -21 L13 -21 M-8 -21 L-4 -21', 'ln thin') +
+        rect(-33, -15, 6, 4, 1.2, 'sh f-gold') + p('M27 -14 L33 -14', 'ln thick') + p('M18 -39 L14 -49', 'ln thin') +
+        (i === 1 ? p('M-24 -18 q3 -2 5 1', 'ln thin') : '') +
+        circ(-19, -7, 7.4) + circ(19, -7, 7.4) + circ(-19, -7, 2.4, 'ink') + circ(19, -7, 2.4, 'ink'),
+      w: 66, h: 48, humans: 0, kind: 'metal', sfx: 'clank', burst: 'bolts',
+    };
+  },
 
-  guest: (o, i, seed) => ({
-    svg: lying({
-      ...crowdLook(i * 3 + seed), mood: 'happy', tilt: tiltFor(i),
-      prop: ell(0, -6, 8, 3, 'sh f-paper2') + p('M-5 -8 Q0 -13 5 -8', 'sh f-gold'),
-    }),
-    ...LY, humans: 1, kind: 'human',
-  }),
-
-  dj: () => ({
+  // ماشین اسپرت بدون هیچ نشان و آرم
+  sportscar: () => ({
     svg:
-      g(rect(-11, -30, 22, 30, 3, 'sh f-ink') + circ(0, -20, 6, 'sh f-paper2') + circ(0, -20, 2, 'ink') + circ(0, -7, 3.4, 'sh f-paper2'), 'translate(26 12)') +
-      lying({ hair: 'spiky', outfit: 'ink', headphones: true, shades: true, mood: 'happy', tilt: -10 }) +
-      g(txt(0, 0, '♪', 12, 'tx note'), 'translate(-22 -48)') + g(txt(0, 0, '♫', 14, 'tx note n2'), 'translate(30 -40)'),
-    w: 56, h: 56, humans: 1, kind: 'human', sfx: 'scratch',
+      p('M-44 -12 Q-45 -18 -39 -20 L-22 -23 Q-11 -35 5 -35.5 Q22 -36 34 -24 Q44 -22.6 44 -15 L44 -12 Q44 -8.6 40 -8.6 L-40 -8.6 Q-44 -8.6 -44 -12Z', 'sh f-red') +
+      p('M-15 -24 Q-7 -32.4 5 -32.6 Q15 -32.6 22 -24Z', 'sh f-glass') + p('M4 -32.6 L4 -24', 'ln thin') +
+      p('M-12 -24 Q4 -21 30 -23 M-6 -21 L-6 -11 M20 -22 L21 -11', 'ln thin') +
+      ell(-39, -16.4, 3.4, 2, 'sh f-gold') + p('M36 -24 L45 -27 L45 -21', 'ln') +
+      circ(-26, -9, 8.6) + circ(27, -9, 8.6) + circ(-26, -9, 4.6, 'sh f-gray') + circ(27, -9, 4.6, 'sh f-gray') +
+      g(p('M0 -6 L0 6 M-6 0 L6 0', 'ln thin'), 'translate(-2 -42)', 'twinkle'),
+    w: 92, h: 50, humans: 0, kind: 'metal', sfx: 'clank', burst: 'bolts',
+  }),
+
+  // کیسه‌ی پول با برچسب خیریه
+  charity: () => ({
+    svg: g(
+      rect(-30, -10, 18, 10, 1.5, 'sh f-money') + rect(-28, -18, 18, 8, 1.5, 'sh f-money') + rect(-23, -18, 5, 8, 0, 'sh f-paper2') +
+      p('M-15 -2 Q-23 -16 -12 -28 L-6 -32 Q-10 -38 -6.4 -43 L6.4 -43 Q10 -38 6 -32 L12 -28 Q23 -16 15 -2 Q0 3 -15 -2Z', 'sh f-bread') +
+      p('M-7 -32.6 Q0 -29.6 7 -32.6', 'rope') + p('M6 -32 Q14 -32 16 -26', 'ln thin') +
+      g(rect(0, 0, 22, 15, 2.4, 'sh f-paper') + p('M5 7.6 C2 5 3 2.6 5 2.6 C6 2.6 6.6 3.6 6.6 4 C6.6 3.6 7.2 2.6 8.4 2.6 C10.4 2.6 11.2 5 8 7.6Z', 'sh f-accent') + txt(15.4, 7.4, 'خیریه', 5), 'translate(12 -27) rotate(10)') +
+      g(circ(0, 0, 5, 'sh f-gold'), 'translate(-2 -50)', 'coin-float'), 'scale(1.25)'),
+    w: 66, h: 72, humans: 0, kind: 'paper', sfx: 'coins', burst: 'coins',
+  }),
+
+  // یوزپلنگ ایرانی: نشسته، باریک و خال‌خالی، با خط اشک سیاه زیر چشم‌ها
+  cheetah: () => {
+    const spots = [[2, -30], [7, -24], [-2, -22], [10, -16], [4, -14], [-4, -12], [14, -8], [7, -6], [-1, -32], [12, -28], [-7, -20], [17, -14]]
+      .map(([x, y]) => circ(x, y, 1.2, 'ink')).join('');
+    return {
+      svg: g(
+        p('M15 -3 Q33 -2 32 -18 Q31 -27 25 -29', 'ln thick tail') + p('M30.4 -21 L33.4 -20 M28.6 -25.4 L31.2 -26.6 M26 -28 L27.6 -30', 'ln thin') +
+        p('M-10 -36 Q-14 -20 -12 -2 L17 -2 Q22 -15 13 -26 Q6 -37 -1 -41Z', 'sh f-bread') +
+        ell(9, -11, 9, 8.6, 'sh f-bread') + ell(11, -1.8, 7, 2.6, 'sh f-bread') + spots +
+        p('M-10 -27 L-11 0 L-5 0 L-4.6 -27', 'sh f-bread') + p('M-2.6 -27 L-2.6 0 L3.2 0 L3 -26', 'sh f-bread') +
+        circ(-8, -5, 0.9, 'ink') + circ(0, -9, 0.9, 'ink') +
+        p('M-13 -24 Q2 -18 17 -22', 'rope') +
+        p('M-12.4 -54.4 L-12.8 -58.6 L-9.6 -57 M-0.4 -54.4 L0 -58.6 L-3.2 -57', 'sh f-bread') +
+        ell(-6.4, -50, 8.6, 7.4, 'sh f-bread') +
+        p('M-9.6 -51.6 L-9.6 -51.4 M-3.2 -51.6 L-3.2 -51.4', 'ln eye') +
+        p('M-10.4 -50.4 Q-11.6 -47 -9.2 -44.2 M-2.4 -50.4 Q-1.2 -47 -3.6 -44.2', 'ln') +
+        p('M-8 -47.6 L-4.8 -47.6 L-6.4 -45.8Z', 'sh f-rose') + p('M-6.4 -45.8 L-6.4 -44.6 M-8.4 -43.6 Q-6.4 -42.6 -4.4 -43.6', 'ln thin') +
+        p('M-11.6 -45.6 L-15.4 -46.4 M-11.6 -44.4 L-15.2 -43.6 M-1.2 -45.6 L2.6 -46.4 M-1.2 -44.4 L2.4 -43.6', 'ln thin') +
+        circ(-11, -56, 0.8, 'ink') + circ(-2, -56.2, 0.8, 'ink'), 'scale(1.25)'),
+      w: 58, h: 76, humans: 0, kind: 'animal', sfx: 'growl', words: ['غرررر!', 'تپ!'],
+    };
+  },
+
+  // دیوار آجری ته ریل (قطار به آن می‌خورد و می‌ایستد)
+  wall: () => {
+    let bricks = '';
+    for (let r = 0; r < 8; r++) {
+      const y = -8 - r * 8;
+      bricks += p(`M-20 ${y} L20 ${y}`, 'ln thin');
+      for (let x = r % 2 ? -10 : -15; x < 20; x += 10) bricks += p(`M${x} ${y} L${x} ${y + 8}`, 'ln thin');
+    }
+    return {
+      svg: rect(-20, -64, 40, 64, 1.5, 'sh f-tea') + bricks + p('M-24 0 L-24 -12 M24 0 L24 -12', 'ln thick') + rect(-26, -14, 52, 6, 2, 'sh f-mustard') + p('M-18 -14 L-14 -8 M-6 -14 L-2 -8 M6 -14 L10 -8 M18 -14 L22 -8', 'ln stripe-ink'),
+      w: 52, h: 66, humans: 0, kind: 'wall', sfx: 'thud', burst: 'bricks', solid: true, stops: 'wall',
+    };
+  },
+
+  // دروازه‌ی زمان؛ قطار از آن رد می‌شود و به صد سال بعد می‌رود
+  portal: () => ({
+    svg:
+      ell(0, -1.6, 22, 3.4, 'sh f-paper2') +
+      ell(0, -36, 22, 35, 'sh f-lilac') + ell(0, -36, 15, 27, 'sh f-paper2') +
+      g(p('M0 -14 Q11 -14 11 -2 Q11 10 -1 10 Q-9 10 -9 1 Q-9 -6 -1 -6 Q4 -6 4 -1', 'ln thin'), 'translate(0 -36)', 'swirl') +
+      p('M0 -36 L0 -45 M0 -36 L6 -32', 'ln thick') + circ(0, -36, 1.8, 'ink') +
+      g(p('M0 -5 L0 5 M-5 0 L5 0', 'ln thin'), 'translate(-26 -66)', 'twinkle') +
+      g(p('M0 -4 L0 4 M-4 0 L4 0', 'ln thin'), 'translate(27 -58)', 'twinkle t2'),
+    w: 50, h: 74, humans: 0, kind: 'portal', sfx: 'whoosh', pass: true,
+  }),
+
+  // همکاری که ایده‌ی شما را به اسم خودش ارائه داد
+  coworker: () => ({
+    svg: lying({
+      hair: 'short', outfit: 'sky', tie: 'accent', glasses: true, mood: 'scared', tilt: -10,
+      prop: p('M-5 -25 L-2 -13 M5 -25 L2 -13', 'ln thin') + rect(-4.4, -13, 8.8, 10, 1.4, 'sh f-paper') + p('M-2 -9 L2 -9 M-2 -6.4 L1 -6.4', 'ln thin'),
+      side: g(rect(0, 0, 24, 17, 2, 'sh f-mustard') + p('M0 3 L24 3', 'ln thin') + txt(12, 12, 'ایده‌ی من', 5), 'translate(12 -12) rotate(12)'),
+    }),
+    w: 40, h: LY.h, humans: 1, kind: 'human',
+  }),
+
+  // مادر: میان‌سال، مهربان، با ژاکت دکمه‌دار
+  mother: () => ({
+    svg: lying({
+      hair: 'bun', outfit: 'rose', cardigan: true, glasses: true, mood: 'warm', tilt: -10,
+      side: g(p('M0 -2.5 C-6 -7 -5.5 -12.5 -2.6 -12.5 C-1 -12.5 0 -11 0 -10 C0 -11 1 -12.5 2.6 -12.5 C5.5 -12.5 6 -7 0 -2.5Z', 'sh f-accent'), 'translate(16 -40)', 'heart'),
+    }),
+    w: 34, h: 56, humans: 1, kind: 'human',
   }),
 
   polite: (o) => ({
@@ -453,22 +589,44 @@ export const ITEMS = {
 };
 
 // ───────────────────────── قطار، سوزن‌بان، اهرم ─────────────────────────
-export function trolley({ passengers = 0 } = {}) {
+/** راننده‌ی قطار با استکان چای (مرحله‌ی «شوخی بی‌ضرر»)؛ مرکز سر روی (0,0) */
+export function driver() {
+  return (
+    p('M-12 22 Q-12 11 0 11 Q12 11 12 22', 'sh f-navy') +
+    g(headShape({ hair: 'cap', facial: 'mustache', mood: 'happy' }), '') +
+    g(
+      p('M-3.4 -9 Q-4.4 -4 -2 -1.4 Q-3.6 1.6 -2.8 3.4 L2.8 3.4 Q3.6 1.6 2 -1.4 Q4.4 -4 3.4 -9Z', 'sh f-tea') +
+      ell(0, 4.4, 6, 1.6, 'sh f-paper2') +
+      p('M-1 -12 Q-3 -15 -1 -18 M1.6 -12.4 Q3.6 -15.4 1.6 -18.4', 'ln thin steam'),
+      'translate(13 12)', 'driver-tea')
+  );
+}
+
+export function trolley({ passengers = 0, driver: withDriver = false, smoky = false } = {}) {
   const wheel = (x) => `<g class="wheel" transform="translate(${x} -10)">${circ(0, 0, 10) + p('M-7 0 L7 0 M0 -7 L0 7', 'ln thin') + circ(0, 0, 2.6, 'ink')}</g>`;
   const windows = [-55, -31, -7, 17].map((x, k) => {
     let w = rect(x, -71, 18, 22, 3, 'sh f-glass');
-    if (k < passengers) {
+    if (k < passengers && !(withDriver && k === 0)) {
       w += g(headShape({ ...crowdLook(k + 2), mood: 'scared' }), `translate(${x + 9} -57) scale(0.62)`);
     }
     return w;
   }).join('');
+  // قطار دودزا: دودکش روی سقف و لکه‌های دوده روی بدنه
+  const stack = smoky
+    ? rect(6, -117, 15, 26, 2, 'sh f-gray') + rect(2.5, -122, 22, 6, 2, 'sh f-ink')
+    : '';
+  const soot = smoky
+    ? p('M-60 -44 q6 -5 12 0 q5 -4 10 1 M8 -46 q5 -4 11 0 M-34 -30 q6 -4 12 1', 'ln soot') + ell(14, -88, 9, 3, 'soot-f')
+    : '';
+  const cab = withDriver ? g(driver(), 'translate(-46 -62) scale(0.62)', 'driver') : '';
   return (
+    stack +
     p('M28 -91 L58 -130', 'ln thick') + circ(60, -132, 3.4) +
     rect(-58, -24, 116, 8, 2, 'ink') +
     p('M-69 -22 L-69 -72 Q-69 -84 -57 -84 L60 -84 Q71 -84 71 -72 L71 -22Z', 'sh f-accent body') +
     p('M-69 -40 L71 -40', 'ln thin') + p('M-69 -36 L71 -36', 'ln thin') +
     rect(-64, -93, 128, 10, 5, 'sh f-paper') +
-    windows +
+    windows + cab + soot +
     rect(43, -73, 22, 49, 2.5, 'sh f-paper2') + p('M54 -73 L54 -24', 'ln thin') +
     p('M-69 -22 L-80 -12 L-62 -12', 'sh f-paper2') +
     circ(-70, -30, 4.4, 'sh f-gold headlight') +
@@ -479,8 +637,40 @@ export function trolley({ passengers = 0 } = {}) {
 }
 
 /** سوزن‌بان؛ بازوی راستش جداگانه در صحنه کشیده می‌شود تا به اهرم برسد */
-export function switchman() {
-  return human({ ...SWITCHMAN, mood: 'worried', tied: false, arms: 'none' }) + p('M10 -41 Q16 -31 14 -23');
+export function switchman(look = SWITCHMAN) {
+  return human({ ...look, mood: 'worried', tied: false, arms: 'none' }) + p('M10 -41 Q16 -31 14 -23');
+}
+
+/** پل عابر پیاده: عرشه از x1 تا x2 در ارتفاع deckY، پایه‌ها و پله‌ها تا groundY */
+export function footbridge(x1, x2, deckY, groundY) {
+  const w = x2 - x1;
+  let rail = '';
+  for (let x = x1 + 10; x < x2 - 4; x += 17) rail += p(`M${x} ${deckY} L${x} ${deckY - 22}`, 'ln thin');
+  const stairs = (x0, dir) => {
+    const run = 70;
+    const h = groundY - deckY - 10;
+    const n = 8;
+    let d = `M${x0} ${deckY + 10}`;
+    for (let k = 1; k <= n; k++) d += ` L${x0 - dir * (run * (k - 1)) / n - dir * run / n} ${deckY + 10 + (h * (k - 1)) / n} L${x0 - dir * (run * k) / n} ${deckY + 10 + (h * k) / n}`;
+    return p(`${d} L${x0} ${groundY} Z`, 'sh f-paper2') +
+      p(`M${x0} ${deckY - 22} L${x0 - dir * run} ${groundY - 24} L${x0 - dir * run} ${groundY - 2}`, 'ln thin');
+  };
+  return (
+    stairs(x1, 1) + stairs(x2, -1) +
+    rect(x1 + 6, deckY + 10, 12, groundY - deckY - 10, 1.5, 'sh f-paper2') + rect(x2 - 18, deckY + 10, 12, groundY - deckY - 10, 1.5, 'sh f-paper2') +
+    rail + p(`M${x1} ${deckY - 22} L${x2} ${deckY - 22}`, 'ln') +
+    rect(x1, deckY, w, 10, 2, 'sh f-mustard') + p(`M${x1 + 4} ${deckY + 5} L${x2 - 4} ${deckY + 5}`, 'ln thin')
+  );
+}
+
+/** نشانه‌ی قرعه: تاس کوچک با خال‌های 1 تا 6 */
+export function dice(face = 1) {
+  const pip = {
+    1: [[0, 0]], 2: [[-3.4, -3.4], [3.4, 3.4]], 3: [[-3.4, -3.4], [0, 0], [3.4, 3.4]],
+    4: [[-3.4, -3.4], [3.4, -3.4], [-3.4, 3.4], [3.4, 3.4]], 5: [[-3.4, -3.4], [3.4, -3.4], [0, 0], [-3.4, 3.4], [3.4, 3.4]],
+    6: [[-3.4, -3.8], [3.4, -3.8], [-3.4, 0], [3.4, 0], [-3.4, 3.8], [3.4, 3.8]],
+  }[face] || [];
+  return rect(-8, -8, 16, 16, 3.4, 'sh f-paper') + pip.map(([x, y]) => circ(x, y, 1.5, 'ink')).join('');
 }
 
 export function leverBase() {
@@ -524,6 +714,7 @@ export const IMPACT_WORDS = {
   box: ['بُنگ!'],
   boom: ['بـــوم!'],
   fog: ['؟!'],
+  wall: ['گرومب!'],
 };
 
 /** حباب «شتلق» — شکل نامنظم با متن */
@@ -543,6 +734,9 @@ export function particles(type, n = 10) {
       case 'rice': s = ell(0, 0, 2.6, 1.2, 'sh f-paper'); break;
       case 'paper': s = rect(-4, -5, 8, 10, 1, 'sh f-paper'); break;
       case 'tea': s = circ(0, 0, 2.6, 'sh f-tea'); break;
+      case 'water': s = circ(0, 0, 2.6, 'sh f-sky'); break;
+      case 'bolts': s = k % 2 ? circ(0, 0, 3, 'sh f-gray') : rect(-4, -2, 8, 4, 1, 'sh f-gray'); break;
+      case 'bricks': s = rect(-5, -3, 10, 6, 1, 'sh f-tea'); break;
       case 'boom': s = p('M0 -7 L2 -2 L7 0 L2 2 L0 7 L-2 2 L-7 0 L-2 -2Z', 'sh f-mustard'); break;
       default: s = p('M0 -5 L1.4 -1.4 L5 0 L1.4 1.4 L0 5 L-1.4 1.4 L-5 0 L-1.4 -1.4Z', 'sh f-mustard');
     }
@@ -551,8 +745,8 @@ export function particles(type, n = 10) {
   return out;
 }
 
-export function smokePuff() {
-  return circ(0, 0, 7, 'sh f-paper smoke');
+export function smokePuff(dark = false) {
+  return dark ? circ(0, 0, 8, 'sh f-gray smoke smog') : circ(0, 0, 7, 'sh f-paper smoke');
 }
 
 export function stamp(text) {

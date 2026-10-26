@@ -154,8 +154,9 @@ b { font-weight: 800; }
 /* ───────── میکروانیمیشن‌های صحنه ───────── */
 .item .body,
 .coin-float, .twinkle, .zz, .note, .blink, .flag, .wifi, .sparkle, .money-float, .lit,
-.heart, .tear, .exhaust, .claw, .tail, .glow, .fog-q, .steam, .sun, .cloud, .birds, .trolley-bob,
-.lever-wrap, .sw-body, .headlight, .loop-mark, .form-note {
+.heart, .tear, .exhaust, .tail, .glow, .fog-q, .steam, .sun, .cloud, .birds, .trolley-bob,
+.lever-wrap, .sw-body, .headlight, .loop-mark, .form-note,
+.fish, .wag, .swirl, .future, .dice-mark, .driver-tea {
   transform-box: fill-box;
   transform-origin: center;
 }
@@ -222,9 +223,6 @@ b { font-weight: 800; }
 @keyframes tear { 0% { opacity: 0; transform: translateY(-2px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(8px); } }
 .exhaust { animation: steam 1.2s ease-out infinite; }
 .exhaust.e2 { animation-delay: -.6s; }
-.claw { animation: claw .8s ease-in-out infinite; }
-.claw.c2 { animation-delay: -.4s; }
-@keyframes claw { 50% { transform: rotate(-14deg); } }
 .tail { transform-origin: 0% 100%; animation: tail 1.6s ease-in-out infinite; }
 @keyframes tail { 50% { transform: rotate(-12deg); } }
 .glow { animation: twinkle 2s ease-in-out infinite; }
@@ -242,6 +240,30 @@ b { font-weight: 800; }
 .form-note { animation: note 3s ease-in-out infinite; }
 .sw-body { transform-origin: 50% 100%; animation: breathe 3.4s ease-in-out infinite; }
 @keyframes breathe { 50% { transform: scaleY(1.015); } }
+
+/* مرحله‌های نسخه‌ی ۲ */
+.blush { fill: var(--rose); opacity: .75; }
+.collar { stroke: var(--accent); stroke-width: 3.2; }
+.shine { stroke: var(--paper); opacity: .8; }
+.soot { stroke: var(--ink-soft); opacity: .55; }
+.soot-f { fill: var(--ink-soft); opacity: .35; }
+.stripe-ink { stroke: var(--ink); stroke-width: 2.6; }
+.smog { fill: var(--ink-soft); stroke: var(--ink); opacity: .7; }
+.fish { animation: fish 2.6s ease-in-out infinite; }
+.fish.f2 { animation-duration: 3.2s; animation-direction: reverse; }
+@keyframes fish { 50% { transform: translate(3px, -1.5px); } }
+.wag { transform-origin: 0% 100%; animation: wag .45s ease-in-out infinite alternate; }
+@keyframes wag { to { transform: rotate(-16deg); } }
+.swirl { animation: spin 2.4s linear infinite; }
+.future { opacity: .55; animation: flicker 2.4s ease-in-out infinite; }
+@keyframes flicker { 50% { opacity: .35; } }
+.driver-tea { animation: note 2.6s ease-in-out infinite; }
+.dice-mark { animation: note 2.4s ease-in-out infinite; transition: opacity .4s; }
+.dice-mark.dim { opacity: .35; }
+.dice-mark.picked { animation: dice-pick .9s var(--spring) both; }
+.dice-mark.picked rect { fill: var(--mustard); }
+@keyframes dice-pick { 0% { transform: rotate(0) scale(1); } 60% { transform: rotate(380deg) scale(1.7); } 100% { transform: rotate(360deg) scale(1.45); } }
+.one-track .pv-line-pull { stroke: var(--accent); }
 
 .veiled { opacity: 0; transition: opacity .6s ease .15s; }
 .veiled.unveiled { opacity: 1; }
@@ -427,6 +449,9 @@ main { max-width: 1060px; margin: 0 auto; padding: 8px clamp(14px, 3vw, 28px) 40
 .cta { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; animation: rise .7s .5s var(--out) both; }
 .fine { color: var(--ink-soft); font-size: .92rem; margin-top: 18px; animation: rise .7s .65s var(--out) both; }
 .fine.alt { margin-top: 6px; animation-delay: .75s; }
+.credit { margin: 28px 0 0; font-size: .8rem; color: var(--ink-soft); text-align: center; animation: rise .7s 1.1s var(--out) both; }
+.credit a { color: inherit; font-weight: 700; text-decoration: none; border-bottom: 1px dashed currentColor; direction: ltr; unicode-bidi: isolate; }
+.credit a:hover { color: var(--accent); }
 .alt-link {
   color: var(--ink);
   font-weight: 800;
@@ -589,6 +614,7 @@ main { max-width: 1060px; margin: 0 auto; padding: 8px clamp(14px, 3vw, 28px) 40
 .result-bar[data-choice="pull"] .pie-fg { stroke: var(--accent); }
 .result-bar[data-choice="stay"] .pie-fg { stroke: var(--teal); }
 .result-bar.show .pie { animation: pie-in .7s var(--spring); }
+.result-bar.no-stats .pie { display: none; }
 @keyframes pie-in { from { transform: rotate(-270deg) scale(.3); } }
 .rb-text { flex: 1 1 320px; min-width: 0; line-height: 1.7; }
 .rb-main { font-size: clamp(1rem, 2.3vw, 1.2rem); font-weight: 700; }
@@ -668,6 +694,8 @@ main { max-width: 1060px; margin: 0 auto; padding: 8px clamp(14px, 3vw, 28px) 40
 .chip.stay { background: var(--teal); color: var(--on-accent); }
 .lv-agree { position: relative; height: 22px; border: 2px solid var(--ink); border-radius: 8px; overflow: hidden; background: var(--paper-2); }
 .lv-agree i { position: absolute; inset: 0 0 0 auto; width: var(--w); background: var(--mustard); animation: grow 1s 1.3s var(--out) both; }
+.lv-agree.few { border-style: dashed; background: transparent; }
+.lv-agree.few b { color: var(--ink-soft); }
 .lv-agree b { position: relative; display: block; text-align: center; font-size: .75rem; line-height: 18px; color: #1e1b2b; }
 @keyframes grow { from { width: 0; } }
 .confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }

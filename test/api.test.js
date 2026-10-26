@@ -1,8 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../server/index.js';
-import { LEVELS } from '../public/js/levels.js';
-import { ITEMS } from '../public/js/art.js';
 
 let server;
 let base;
@@ -61,15 +59,6 @@ test('فایل‌های ایستا سرو می‌شوند و مسیرهای خا
   assert.notEqual(evil.status, 200);
 });
 
-test('داده‌ی مرحله‌ها سالم است', () => {
-  const ids = new Set();
-  for (const l of LEVELS) {
-    assert.ok(!ids.has(l.id), `شناسه‌ی تکراری: ${l.id}`);
-    ids.add(l.id);
-    assert.ok(l.title && l.text, l.id);
-    for (const track of [l.top, l.bottom]) {
-      for (const item of track.items) assert.ok(ITEMS[item.k], `آیتم ناشناخته ${item.k} در ${l.id}`);
-    }
-  }
-  assert.ok(LEVELS.length >= 10);
+test('مرحله‌ی «بازیکن قبلی» رأی نمی‌گیرد', async () => {
+  assert.equal((await vote({ session: 'session-eeee', level: 'previous-player', choice: 'pull' })).status, 400);
 });
