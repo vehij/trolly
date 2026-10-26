@@ -101,7 +101,8 @@ public/js/levels.js  متن و چیدمان مرحله‌ها (سرور هم ا�
 public/js/art.js     کتابخانه‌ی تصویرسازی SVG: آدم‌ها، اشیا، قطار، سوزن‌بان
 public/js/scene.js   ساخت صحنه، طراحی با قلم، حرکت قطار و برخوردها
 public/js/audio.js   افکت‌های صوتی Web Audio و باز کردن قفل صدا در موبایل
-public/js/music.js   موسیقی لوفای پس‌زمینه
+public/js/music.js   موسیقی پس‌زمینه: روشن و خاموش، مکث در پس‌زمینه و برگشت
+public/js/lofi.js    موتور موسیقی لوفای (Web Audio، قابل تست بدون مرورگر)
 public/js/share.js   تصویرهای اشتراک (canvas) و پنجره‌ی اشتراک
 server/meta.js       تگ‌های پیش‌نمایش لینک بر اساس دامنه
 public/js/app.js     جریان بازی، نتیجه‌ها و صفحه‌ی پایانی
