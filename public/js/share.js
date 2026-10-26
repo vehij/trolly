@@ -60,12 +60,7 @@ async function svgImage(inner, viewBox, w, h, cls = '') {
 }
 
 function heroMarkup() {
-  const ties = Array.from({ length: 25 }, (_, i) => `<line class="tie" x1="${i * 38}" y1="244" x2="${i * 38}" y2="268"/>`).join('');
-  return `<g class="scenery">${A.scenery()}</g>${ties}
-    <path class="rail" d="M-20 250 H920"/><path class="rail" d="M-20 262 H920"/>
-    <g transform="translate(140 288)">${A.leverBase()}<g transform="rotate(-20 0 -7)">${A.leverArm()}</g></g>
-    <g transform="translate(186 290) scale(1.25)">${A.human({ ...A.SWITCHMAN, mood: 'happy', tied: false, arms: 'cheer' })}</g>
-    <g transform="translate(640 256)">${A.trolley({ passengers: 2 })}</g>`;
+  return A.heroScene(`<g transform="translate(${A.HERO_TROLLEY_PARK} ${A.HERO_RAIL_Y})">${A.trolley({ passengers: 2 })}</g>`);
 }
 
 // عکس ثابت از صحنه‌ی یک مرحله: صحنه بیرون از دید ساخته می‌شود، قطار سر جایش قرار می‌گیرد و برچسب‌ها جدا خوانده می‌شوند

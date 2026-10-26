@@ -838,4 +838,6 @@ body.sheet-open { overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  /* قطار صفحه‌ی اول بی‌حرکت، سمت راست و پیش از اهرم می‌ایستد (همان HERO_TROLLEY_PARK در art.js) */
+  .hero-run { animation: none !important; transform: translateX(720px); }
 }

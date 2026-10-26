@@ -681,6 +681,58 @@ export function leverArm() {
   return p('M0 -7 L0 -62', 'ln lever-stick') + circ(0, -64, 7, 'sh f-accent knob');
 }
 
+// ───────────────────────── صحنه‌ی صفحه‌ی اول ─────────────────────────
+// viewBox 0 0 900 300. ریل اصلی وسط صحنه است و قطار فقط روی آن راه می‌رود. اهرم و سوزن‌بان
+// جلوتر و پایین‌تر، کنار ریل روی زمین ایستاده‌اند و از پایین چرخ‌ها پایین‌ترند؛ پس قطار هیچ‌وقت از رویشان رد نمی‌شود.
+// بعد از اهرم (در جهت حرکت قطار، یعنی سمت چپ) ریل دو شاخه می‌شود و شاخه‌ی دوم به سمت جلو می‌پیچد.
+export const HERO_RAIL_Y = 190;
+export const HERO_TROLLEY_PARK = 720;
+
+const HERO_BRANCH = [[448, 190], [388, 190], [338, 242], [258, 242]]; // محور شاخه‌ی دوم (بزیه‌ی مکعبی)
+
+function bezierAt([a, b, c, d], t) {
+  const u = 1 - t;
+  const k = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+  const dk = [-3 * u * u, 3 * u * u - 6 * u * t, 6 * u * t - 3 * t * t, 3 * t * t];
+  const sum = (w, i) => w.reduce((s, wj, j) => s + wj * [a, b, c, d][j][i], 0);
+  return { x: sum(k, 0), y: sum(k, 1), dx: sum(dk, 0), dy: sum(dk, 1) };
+}
+
+function heroTrack() {
+  const y = HERO_RAIL_Y;
+  const tie = (x1, y1, x2, y2) => `<line class="tie" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+  let ties = '';
+  for (let x = 0; x <= 912; x += 38) ties += tie(x, y - 12, x, y + 12);
+  // تراورس‌های شاخه: روی پیچ عمود بر مسیر، بعد صاف تا لبه‌ی صحنه
+  for (const t of [0.35, 0.55, 0.75, 0.95]) {
+    const { x, y: by, dx, dy } = bezierAt(HERO_BRANCH, t);
+    const n = Math.hypot(dx, dy);
+    const [nx, ny] = [-dy / n * 12, dx / n * 12];
+    ties += tie(x - nx, by - ny, x + nx, by + ny);
+  }
+  const by = HERO_BRANCH[3][1];
+  for (let x = 224; x >= -10; x -= 38) ties += tie(x, by - 12, x, by + 12);
+  const branch = (dy) => {
+    const [a, b, c, d] = HERO_BRANCH.map(([px, py], i) => [px + (i < 2 ? dy * 1.4 : dy), py + dy]);
+    return p(`M${a[0]} ${a[1]} C${b[0]} ${b[1]} ${c[0]} ${c[1]} ${d[0]} ${d[1]} H-20`, 'rail');
+  };
+  return ties +
+    p(`M-20 ${y - 6} H920`, 'rail') + p(`M-20 ${y + 6} H920`, 'rail') +
+    branch(-6) + branch(6);
+}
+
+/**
+ * کل صحنه‌ی صفحه‌ی اول. trolley: نشانه‌گذاری قطار که بیرون ساخته می‌شود (متحرک یا ثابت).
+ * سوزن‌بان کلاس hero-sw دارد تا دست تکان دادنش در CSS انیمیت شود.
+ */
+export function heroScene(trolleyMarkup) {
+  return `<g class="scenery">${scenery()}</g>` +
+    heroTrack() +
+    trolleyMarkup +
+    g(leverBase() + g(leverArm(), 'rotate(-20 0 -7)'), 'translate(500 282)') +
+    g(human({ ...SWITCHMAN, mood: 'happy', tied: false, arms: 'cheer' }), 'translate(540 294) scale(1.15)', 'hero-sw');
+}
+
 // ───────────────────────── پس‌زمینه ─────────────────────────
 export function scenery() {
   return (

@@ -254,16 +254,8 @@ function html(str) {
 
 // ───────── صفحه‌ی شروع ─────────
 function heroSvg() {
-  const ties = Array.from({ length: 25 }, (_, i) => `<line class="tie" x1="${i * 38}" y1="244" x2="${i * 38}" y2="268"/>`).join('');
-  return `
-  <svg class="hero-art" viewBox="0 0 900 300" aria-hidden="true">
-    <g class="scenery">${A.scenery()}</g>
-    ${ties}
-    <path class="rail" d="M-20 250 H920"/><path class="rail" d="M-20 262 H920"/>
-    <g transform="translate(140 288)">${A.leverBase()}<g transform="rotate(-20 0 -7)">${A.leverArm()}</g></g>
-    <g transform="translate(186 290) scale(1.25)" class="hero-sw">${A.human({ ...A.SWITCHMAN, mood: 'happy', tied: false, arms: 'cheer' })}</g>
-    <g class="hero-run"><g transform="translate(0 256)"><g class="trolley-bob">${A.trolley({ passengers: 2 })}</g></g></g>
-  </svg>`;
+  const trolley = `<g class="hero-run"><g transform="translate(0 ${A.HERO_RAIL_Y})"><g class="trolley-bob">${A.trolley({ passengers: 2 })}</g></g></g>`;
+  return `<svg class="hero-art" viewBox="0 0 900 300" aria-hidden="true">${A.heroScene(trolley)}</svg>`;
 }
 
 function introScreen() {
