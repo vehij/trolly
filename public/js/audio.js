@@ -1,29 +1,129 @@
 // افکت‌های صوتی که همه با Web Audio ساخته می‌شوند (بدون فایل صوتی)
 let ctx = null;
 let master = null;
+let musicBus = null;
 let noiseBuf = null;
 let rumble = null;
 let enabled = true;
+let unlocked = false;
+let silent = null;
+const unlockListeners = new Set();
+const wantsAudio = new Set([() => enabled]);
 
 try {
   enabled = localStorage.getItem('sozanban:sound') !== 'off';
 } catch { /* ignore */ }
 
+// آیفون و آیپد (آیپد جدید خودش را مک معرفی می‌کند)
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const anyAudio = () => [...wantsAudio].some((f) => f());
+
+function create() {
+  if (ctx) return ctx;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  ctx = new AC({ latencyHint: 'playback' });
+  master = ctx.createGain();
+  master.gain.value = 0.55;
+  master.connect(ctx.destination);
+  musicBus = ctx.createGain();
+  musicBus.connect(ctx.destination);
+  noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.5, ctx.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return ctx;
+}
+
 function ensure() {
   if (!enabled) return null;
-  if (!ctx) {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-    ctx = new AC();
-    master = ctx.createGain();
-    master.gain.value = 0.55;
-    master.connect(ctx.destination);
-    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.5, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  }
-  if (ctx.state === 'suspended') ctx.resume();
+  if (!create()) return null;
+  // بیرون از لمس کاربر resume در iOS کاری نمی‌کند؛ بعد از اولین لمس (unlock) دوباره امتحان می‌شود
+  if (ctx.state !== 'running' && unlocked) ctx.resume().catch(() => {});
   return ctx;
+}
+
+// iOS صدای Web Audio را با کلید سکوت گوشی قطع می‌کند. با نوع جلسه‌ی «playback» (سافاری ۱۷ به بعد)
+// یا در نسخه‌های قدیمی‌تر با پخش یک فایل بی‌صدای کوتاه در حلقه، صدا مثل پخش ویدیو شنیده می‌شود.
+function playbackSession() {
+  try {
+    if (navigator.audioSession) {
+      navigator.audioSession.type = 'playback';
+      return;
+    }
+  } catch { /* ignore */ }
+  if (!isIOS) return;
+  if (!silent) {
+    silent = document.createElement('audio');
+    silent.src = '/audio/silence.wav';
+    silent.loop = true;
+    silent.preload = 'auto';
+    silent.setAttribute('playsinline', '');
+    silent.setAttribute('aria-hidden', 'true');
+  }
+  if (silent.paused) silent.play().catch(() => {});
+}
+
+// باید همزمان (synchronous) داخل رویداد لمس/کلیک صدا زده شود
+function unlock() {
+  if (!anyAudio() || !create()) return;
+  playbackSession();
+  if (ctx.state !== 'running') ctx.resume().catch(() => {});
+  if (!unlocked) {
+    // پخش یک بافر خالی، ترفند قدیمی باز کردن قفل صدا در iOS
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    src.connect(ctx.destination);
+    src.start(0);
+    unlocked = true;
+    for (const fn of unlockListeners) {
+      try { fn(); } catch { /* ignore */ }
+    }
+  }
+}
+// این شنونده‌ها می‌مانند تا اگر iOS صدا را قطع کرد (تماس، رفتن به پس‌زمینه) با لمس بعدی برگردد
+for (const type of ['pointerdown', 'touchend', 'click', 'keydown']) {
+  window.addEventListener(type, unlock, { capture: true, passive: true });
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!ctx) return;
+  if (document.hidden) {
+    ctx.suspend().catch(() => {});
+    silent?.pause();
+  } else if (unlocked && anyAudio()) {
+    ctx.resume().catch(() => {});
+    if (silent && !navigator.audioSession) silent.play().catch(() => {});
+  }
+});
+
+// برای موسیقی: کانتکست مشترک، گذرگاه موسیقی و وضعیت قفل
+export const shared = {
+  get ctx() { return ctx; },
+  get musicBus() { return musicBus; },
+  get noise() { return noiseBuf; },
+  get unlocked() { return unlocked; },
+  create,
+  unlock,
+  onUnlock(fn) { unlockListeners.add(fn); },
+  wants(fn) { wantsAudio.add(fn); },
+  release() {
+    if (!anyAudio()) silent?.pause();
+  },
+};
+
+// وقتی افکتی پخش می‌شود موسیقی کمی آرام‌تر می‌شود
+let duckUntil = 0;
+function duck(dur = 0.5, depth = 0.5) {
+  if (!musicBus) return;
+  const t = ctx.currentTime;
+  const g = musicBus.gain;
+  const end = Math.max(duckUntil, t + dur);
+  g.cancelScheduledValues(t);
+  g.setValueAtTime(g.value, t);
+  g.linearRampToValueAtTime(depth, t + 0.04);
+  g.setValueAtTime(depth, end);
+  g.linearRampToValueAtTime(1, end + 0.7);
+  duckUntil = end;
 }
 
 const now = () => ctx.currentTime;
@@ -121,6 +221,7 @@ const SOUNDS = {
     src.connect(f).connect(gn).connect(master);
     src.start(t);
     rumble = { src, gn };
+    duck(8, 0.6);
   },
   'rumble-stop': () => stopRumble(),
 };
@@ -134,13 +235,20 @@ function stopRumble() {
   gn.gain.setValueAtTime(Math.max(gn.gain.value, 0.0001), t);
   gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
   src.stop(t + 0.4);
+  if (musicBus) {
+    duckUntil = 0;
+    duck(0.3, 0.6);
+  }
 }
 
 export function play(name, opts) {
   if (!enabled) return;
   if (!ensure()) return;
+  // پیش از اولین لمس کانتکست معلق است؛ صداهای صف‌شده نباید بعداً یک‌جا پخش شوند
+  if (ctx.state !== 'running' && !unlocked) return;
   try {
     SOUNDS[name]?.(opts);
+    if (name !== 'hover' && !name.startsWith('rumble')) duck(name === 'boom' ? 1.4 : 0.45);
   } catch { /* صدا نباید بازی را خراب کند */ }
 }
 
@@ -153,6 +261,11 @@ export function setEnabled(on) {
   try {
     localStorage.setItem('sozanban:sound', on ? 'on' : 'off');
   } catch { /* ignore */ }
-  if (!on) stopRumble();
-  else ensure();
+  if (!on) {
+    stopRumble();
+    shared.release();
+  } else {
+    unlock();
+    ensure();
+  }
 }
