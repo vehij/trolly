@@ -1,6 +1,24 @@
 /* دردسرهای سوزن‌بان — استایل‌ها
    سبک: تصویرسازی خطی روی کاغذ کرم، یک رنگ تأکیدی نارنجی، انیمیشن‌های ریز همه‌جا */
 
+/* فونت استعداد (Estedad، مجوز SIL OFL) — روی خود سرور میزبانی می‌شود تا در قطعی اینترنت بین‌الملل هم لود شود */
+@font-face {
+  font-family: 'Estedad';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url(/fonts/estedad-arabic.woff2) format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+}
+@font-face {
+  font-family: 'Estedad';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url(/fonts/estedad-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   --paper: #f5eedf;
   --paper-2: #e9dec8;
@@ -408,6 +426,16 @@ main { max-width: 1060px; margin: 0 auto; padding: 8px clamp(14px, 3vw, 28px) 40
 .lead { max-width: 640px; margin: 10px auto 22px; font-size: clamp(1rem, 2.3vw, 1.2rem); color: var(--ink-soft); animation: rise .7s .35s var(--out) both; }
 .cta { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; animation: rise .7s .5s var(--out) both; }
 .fine { color: var(--ink-soft); font-size: .92rem; margin-top: 18px; animation: rise .7s .65s var(--out) both; }
+.fine.alt { margin-top: 6px; animation-delay: .75s; }
+.alt-link {
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: none;
+  border-bottom: 2px dashed var(--accent);
+  padding: 0 2px;
+  transition: background .2s, color .2s;
+}
+.alt-link:hover { background: var(--accent); color: var(--on-accent); border-bottom-color: transparent; border-radius: 4px; }
 .howto { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 26px; padding: 0; margin: 26px 0 0; color: var(--ink-soft); }
 .howto li { display: flex; align-items: center; gap: 8px; animation: rise .6s var(--out) both; }
 .howto li:nth-child(1) { animation-delay: .8s; }

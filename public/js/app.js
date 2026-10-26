@@ -29,6 +29,26 @@ const store = {
   },
 };
 
+const SESSION_RE = /^[A-Za-z0-9_-]{8,64}$/;
+
+// ورود از نسخه‌ی دیگر (ایران ↔ بین‌الملل): localStorage هر دامنه جداست، پس شناسه و پیشرفت بازی
+// در بخش # آدرس منتقل می‌شود (این بخش هیچ‌وقت به سرور فرستاده نمی‌شود)
+(function applyHandoff() {
+  const m = location.hash.match(/^#handoff=(.+)$/);
+  if (!m) return;
+  try {
+    const data = JSON.parse(decodeURIComponent(m[1]));
+    if (typeof data.s === 'string' && SESSION_RE.test(data.s)) store.set('session', data.s);
+    if (data.p && typeof data.p === 'object' && data.p.answers && typeof data.p.answers === 'object') {
+      store.set('progress', { idx: Math.max(0, Number(data.p.idx) || 0), answers: data.p.answers });
+    }
+    if (Array.isArray(data.q)) store.set('pending', data.q);
+  } catch { /* لینک خراب؛ ادامه بدون انتقال */ }
+  // کاربری که خودش یا با هدایت به اینجا آمده دوباره به جای دیگر فرستاده نمی‌شود (جلوگیری از رفت‌وبرگشت)
+  store.set('pinned', true);
+  history.replaceState(null, '', location.pathname + location.search);
+})();
+
 function sessionId() {
   let id = store.get('session', null);
   if (!id) {
@@ -69,14 +89,64 @@ async function loadStats() {
   }
 }
 
+// رأی‌هایی که به خاطر قطعی ارسال نشده‌اند در صف می‌مانند و بعداً فرستاده می‌شوند
+// (سرور برای هر نشست و مرحله فقط یک رأی نگه می‌دارد، پس ارسال دوباره بی‌خطر است)
+function queueVote(level, choice) {
+  const pending = store.get('pending', []).filter((p) => p.level !== level);
+  pending.push({ level, choice });
+  store.set('pending', pending);
+}
+
+async function flushPending() {
+  if (flushPending.busy) return;
+  flushPending.busy = true;
+  try {
+    for (const p of store.get('pending', [])) {
+      await api('/api/vote', { method: 'POST', body: JSON.stringify({ session: sessionId(), level: p.level, choice: p.choice }) });
+      store.set('pending', store.get('pending', []).filter((x) => x.level !== p.level));
+    }
+  } catch { /* هنوز قطع است؛ دفعه‌ی بعد */ }
+  flushPending.busy = false;
+}
+window.addEventListener('online', flushPending);
+
 async function sendVote(level, choice) {
   try {
     const r = await api('/api/vote', { method: 'POST', body: JSON.stringify({ session: sessionId(), level, choice }) });
     state.stats.levels[level] = { pull: r.pull, stay: r.stay };
+    store.set('pending', store.get('pending', []).filter((p) => p.level !== level));
+    flushPending();
     return { pull: r.pull, stay: r.stay };
   } catch {
+    queueVote(level, choice);
     return null;
   }
+}
+
+// ───────── دو نسخه: ایران و بین‌الملل ─────────
+function handoffUrl(target) {
+  const data = { s: sessionId(), p: { idx: state.idx, answers: state.answers }, q: store.get('pending', []) };
+  return `${target}/#handoff=${encodeURIComponent(JSON.stringify(data))}`;
+}
+
+// آیا نسخه‌ی دیگر الان در دسترس است؟ (پاسخ cross-origin خوانده نمی‌شود، فقط رسیدنش مهم است)
+async function reachable(base, timeout = 3000) {
+  try {
+    await fetch(`${base}/healthz`, { mode: 'no-cors', cache: 'no-store', signal: AbortSignal.timeout(timeout) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function altLink() {
+  const w = state.where;
+  if (!w?.alt) return '';
+  const host = w.alt.replace(/^https?:\/\//, '');
+  const text = w.region === 'intl'
+    ? `در ایران هستید؟ نسخه‌ی داخلی که در زمان قطعی اینترنت بین‌الملل هم کار می‌کند: <a class="alt-link" href="${w.alt}" dir="ltr">${host}</a>`
+    : `خارج از ایران هستید؟ نسخه‌ی بین‌المللی: <a class="alt-link" href="${w.alt}" dir="ltr">${host}</a>`;
+  return `<p class="fine alt">${text}</p>`;
 }
 
 // ───────── ابزارهای رابط کاربری ─────────
@@ -207,6 +277,7 @@ function introScreen() {
         <button class="btn ${resume || done ? '' : 'btn-pull'}" data-act="start">${answered ? 'از اول شروع کن' : 'شروع کن'}</button>
       </div>
       <p class="fine">رأی‌ها ناشناس ثبت می‌شوند.${players ? ` تا امروز <b class="players">${faNum(players)}</b> نفر سوزن‌بان شده‌اند.` : ''}</p>
+      ${altLink()}
       <ul class="howto">
         <li><span class="k">۱</span> سناریو را بخوانید</li>
         <li><span class="k">۲</span> اهرم را بکشید… یا نکشید</li>
@@ -214,6 +285,12 @@ function introScreen() {
       </ul>
     </section>`);
   node.addEventListener('click', (e) => {
+    const alt = e.target.closest('.alt-link');
+    if (alt) {
+      e.preventDefault();
+      location.href = handoffUrl(state.where.alt);
+      return;
+    }
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (!act) return;
     sound.play('click');
@@ -529,14 +606,28 @@ document.addEventListener('keydown', (e) => {
 async function boot() {
   const t0 = performance.now();
   const fonts = document.fonts?.ready ?? Promise.resolve();
-  await Promise.race([Promise.all([fonts, loadStats()]), wait(3500)]);
+  const where = api('/api/whereami', {}, 2500).then((w) => (state.where = w)).catch(() => null);
+  await Promise.race([Promise.all([fonts, loadStats(), where]), wait(3500)]);
+  flushPending();
+  const deep = location.hash.match(/^#level-(\d+)$/);
+
+  // هدایت به نسخه‌ی مناسب (کاربر ایرانی ← نسخه‌ی ایران، کاربر خارج ← نسخه‌ی بین‌الملل)
+  const suggest = state.where?.suggest;
+  if (suggest && !deep && !store.get('pinned', false)) {
+    $('.loader-hint').textContent = 'در حال انتقال به نسخه‌ی نزدیک‌تر به شما…';
+    if (await reachable(suggest)) {
+      location.replace(handoffUrl(suggest));
+      return;
+    }
+    $('.loader-hint').textContent = 'در حال آماده کردن ریل‌ها…';
+  }
+
   const minShow = reduceMotion() ? 0 : 1700;
   await wait(Math.max(0, minShow - (performance.now() - t0)));
   const loader = $('#loader');
   loader.classList.add('done');
   setTimeout(() => loader.remove(), 900);
   document.body.classList.add('ready');
-  const deep = location.hash.match(/^#level-(\d+)$/);
   if (deep && LEVELS[deep[1] - 1]) {
     state.idx = deep[1] - 1;
     history.replaceState(null, '', location.pathname);

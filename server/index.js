@@ -1,13 +1,16 @@
 // سرور «دردسرهای سوزن‌بان»: فایل‌های ایستا + API رأی‌گیری
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { join, normalize, extname, dirname } from 'node:path';
+import { join, normalize, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { openStore, CHOICES } from './db.js';
+import { createSyncWorker } from './sync.js';
+import { countryOf } from './geo.js';
+import { loadConfig, ROOT } from './config.js';
 import { LEVELS } from '../public/js/levels.js';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = join(ROOT, 'public');
 const LEVEL_IDS = new Set(LEVELS.map((l) => l.id));
 const SESSION_RE = /^[A-Za-z0-9_-]{8,64}$/;
@@ -21,6 +24,7 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.json': 'application/json; charset=utf-8',
   '.webmanifest': 'application/manifest+json',
+  '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
 };
 const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.svg', '.json', '.webmanifest', '.txt']);
@@ -29,17 +33,18 @@ const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'X-Frame-Options': 'SAMEORIGIN',
-  'Content-Security-Policy': [
-    "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    'font-src https://fonts.gstatic.com',
-    "img-src 'self' data:",
-    "connect-src 'self'",
-    "base-uri 'self'",
-    "form-action 'self'",
-  ].join('; '),
 };
+
+const csp = (altUrl) => [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
+  "img-src 'self' data:",
+  `connect-src 'self'${altUrl ? ` ${altUrl}` : ''}`,
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
 
 // محدودیت ساده‌ی نرخ درخواست برای هر IP
 function rateLimiter({ windowMs, max }) {
@@ -88,14 +93,49 @@ function readBody(req, limit = 2048) {
   });
 }
 
-export function createApp({ dbPath = ':memory:', trustProxy = false, voteLimit = 120 } = {}) {
-  const store = openStore(dbPath);
+const ORIGIN_RE = /^[a-z0-9_-]{1,16}$/i;
+const MAX_SYNC_ROWS = 2000;
+
+function validRemoteRow(r) {
+  return (
+    r && typeof r === 'object' &&
+    typeof r.session === 'string' && SESSION_RE.test(r.session) &&
+    LEVEL_IDS.has(r.level) &&
+    CHOICES.includes(r.choice) &&
+    Number.isSafeInteger(r.created_at) && Number.isSafeInteger(r.updated_at) &&
+    typeof r.origin === 'string' && ORIGIN_RE.test(r.origin)
+  );
+}
+
+export function createApp({
+  dbPath = ':memory:',
+  trustProxy = false,
+  voteLimit = 120,
+  region = 'main',
+  altUrl = '',
+  geoRedirect = false,
+  syncSecret = '',
+  syncPeer = '',
+  syncInterval = 300_000,
+  startSync = true,
+} = {}) {
+  const store = openStore(dbPath, { region });
   const allowVote = rateLimiter({ windowMs: 60_000, max: voteLimit });
   const fileCache = new Map();
   let statsCache = null;
+  const secretHash = syncSecret ? createHash('sha256').update(syncSecret).digest() : null;
 
-  const clientIp = (req) =>
-    (trustProxy && req.headers['x-forwarded-for']?.split(',')[0].trim()) || req.socket.remoteAddress || '?';
+  // پشت پراکسی: آخرین مقدار X-Forwarded-For را خود پراکسی ما (Apache/LiteSpeed) اضافه کرده و قابل جعل نیست؛
+  // مقدارهای قبلی را کاربر می‌تواند بفرستد. پشت Cloudflare از CF-Connecting-IP استفاده می‌شود.
+  const clientIp = (req) => {
+    if (trustProxy === 'cloudflare' && req.headers['cf-connecting-ip']) return req.headers['cf-connecting-ip'].trim();
+    if (trustProxy && req.headers['x-forwarded-for']) return req.headers['x-forwarded-for'].split(',').at(-1).trim();
+    return req.socket.remoteAddress || '?';
+  };
+
+  const sync = syncPeer && syncSecret
+    ? createSyncWorker({ store, peer: syncPeer, secret: syncSecret, intervalMs: syncInterval, onApplied: () => { statsCache = null; } })
+    : null;
 
   async function serveStatic(req, res, pathname) {
     let rel = decodeURIComponent(pathname);
@@ -115,7 +155,7 @@ export function createApp({ dbPath = ':memory:', trustProxy = false, voteLimit =
     const etag = `W/"${info.size.toString(16)}-${info.mtimeMs.toString(16)}"`;
     const headers = {
       'Content-Type': MIME[ext] || 'application/octet-stream',
-      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600',
+      'Cache-Control': ext === '.html' ? 'no-cache' : ext === '.woff2' ? 'public, max-age=31536000, immutable' : 'public, max-age=3600',
       ETag: etag,
       Vary: 'Accept-Encoding',
     };
@@ -154,15 +194,69 @@ export function createApp({ dbPath = ':memory:', trustProxy = false, voteLimit =
     json(res, 200, statsCache.data);
   }
 
+  // کدام نسخه برای این کاربر مناسب‌تر است؟ (هدایت در خود مرورگر انجام می‌شود تا پیشرفت بازی منتقل شود)
+  function handleWhereami(req, res) {
+    const country = countryOf(clientIp(req));
+    let suggest = null;
+    if (geoRedirect && altUrl) {
+      if (region === 'intl' && country === 'IR') suggest = altUrl;
+      if (region === 'ir' && country === 'other') suggest = altUrl;
+    }
+    json(res, 200, { region, country, alt: altUrl || null, suggest });
+  }
+
+  function syncAuthorized(req) {
+    if (!secretHash) return false;
+    const m = /^Bearer (.+)$/.exec(req.headers.authorization || '');
+    if (!m) return false;
+    return timingSafeEqual(createHash('sha256').update(m[1]).digest(), secretHash);
+  }
+
+  async function handleSync(req, res, url) {
+    if (!syncAuthorized(req)) return json(res, secretHash ? 401 : 404, { error: secretHash ? 'unauthorized' : 'not found' });
+    const route = url.pathname.slice('/api/sync/'.length);
+    if (route === 'changes' && req.method === 'GET') {
+      const after = Math.max(0, Number(url.searchParams.get('after')) || 0);
+      const limit = Math.min(MAX_SYNC_ROWS, Math.max(1, Number(url.searchParams.get('limit')) || 1000));
+      const exclude = url.searchParams.get('exclude') || null;
+      return json(res, 200, { region, ...store.changesSince(after, { limit, excludeOrigin: exclude }) });
+    }
+    if (route === 'apply' && req.method === 'POST') {
+      let data;
+      try {
+        data = JSON.parse(await readBody(req, 8 * 1024 * 1024));
+      } catch (err) {
+        return json(res, err.status || 400, { error: 'invalid body' });
+      }
+      if (!Array.isArray(data?.rows) || data.rows.length > MAX_SYNC_ROWS) return json(res, 400, { error: 'rows' });
+      const rows = data.rows.filter(validRemoteRow);
+      const result = store.applyRemote(rows);
+      statsCache = null;
+      return json(res, 200, { region, ...result, invalid: data.rows.length - rows.length });
+    }
+    if (route === 'status' && req.method === 'GET') return json(res, 200, store.status());
+    if (route === 'run' && req.method === 'POST') {
+      if (!sync) return json(res, 400, { error: 'این سرور همگام‌سازی را شروع نمی‌کند (SYNC_PEER تنظیم نشده)' });
+      return json(res, 200, await sync.run());
+    }
+    return json(res, 404, { error: 'not found' });
+  }
+
+  const cspHeader = csp(altUrl);
+
   const server = createServer(async (req, res) => {
+    res.setHeader('Content-Security-Policy', cspHeader);
     try {
-      const { pathname } = new URL(req.url, 'http://localhost');
+      const url = new URL(req.url, 'http://localhost');
+      const { pathname } = url;
       if (pathname === '/api/vote') {
         if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
         return await handleVote(req, res);
       }
       if (pathname === '/api/stats') return handleStats(res);
-      if (pathname === '/healthz') return json(res, 200, { ok: true });
+      if (pathname === '/api/whereami') return handleWhereami(req, res);
+      if (pathname.startsWith('/api/sync/')) return await handleSync(req, res, url);
+      if (pathname === '/healthz') return json(res, 200, { ok: true, region });
       if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');
       return await serveStatic(req, res, pathname);
     } catch (err) {
@@ -172,19 +266,23 @@ export function createApp({ dbPath = ':memory:', trustProxy = false, voteLimit =
     }
   });
 
-  server.on('close', () => store.close());
+  if (sync && startSync) server.on('listening', () => sync.start());
+  server.on('close', () => {
+    sync?.stop();
+    store.close();
+  });
+  server.sync = sync;
+  server.store = store;
   return server;
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === normalize(process.argv[1]);
 if (isMain) {
-  const port = Number(process.env.PORT) || 3000;
-  const host = process.env.HOST || '0.0.0.0';
-  const server = createApp({
-    dbPath: process.env.DB_PATH || join(ROOT, 'data', 'votes.db'),
-    trustProxy: process.env.TRUST_PROXY === '1',
-    voteLimit: Number(process.env.VOTE_LIMIT) || 120,
+  const cfg = loadConfig();
+  const server = createApp(cfg);
+  server.listen(cfg.port, cfg.host, () => {
+    console.log(`🚋 دردسرهای سوزن‌بان (${cfg.region}) روی http://localhost:${cfg.port} آماده است`);
+    if (cfg.syncPeer) console.log(`🔄 همگام‌سازی با ${cfg.syncPeer} هر ${cfg.syncInterval / 1000} ثانیه`);
   });
-  server.listen(port, host, () => console.log(`🚋 دردسرهای سوزن‌بان روی http://localhost:${port} آماده است`));
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => server.close(() => process.exit(0)));
 }
