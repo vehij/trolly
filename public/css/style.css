@@ -54,22 +54,7 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #17151f;
-    --paper-2: #242131;
-    --ink: #f3ebdc;
-    --ink-soft: #9a93a6;
-    --on-accent: #fffaf0;
-    --skin: #2a2637;
-    --fog: #2b2838;
-    --glass: #2b3d4a;
-    --gray: #8d877d;
-    --navy: #5272b8;
-    --shadow: #000;
-    color-scheme: dark;
-  }
-}
+/* سایت همیشه روشن است؛ حالت تاریک سیستم نادیده گرفته می‌شود */
 
 *,
 *::before,
