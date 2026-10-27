@@ -1,5 +1,5 @@
 // جریان کلی بازی: لودر، صفحه‌ی شروع، مرحله‌ها، نتیجه‌ها و جمع‌بندی پایانی
-import { LEVELS, DEFAULT_LABELS, MIN_VOTES, hasChoice } from './levels.js';
+import { LEVELS, DEFAULT_LABELS, MIN_VOTES, ARCH_MIN_VOTES, hasChoice } from './levels.js';
 import { createScene } from './scene.js';
 import * as A from './art.js';
 import * as sound from './audio.js';
@@ -538,10 +538,10 @@ function optionDeaths(level, choice) {
 }
 
 // درصد هم‌نظرها برای یک جواب؛ اگر مرحله رأی کافی ندارد null
-function agreement(level, a) {
+function agreement(level, a, min = MIN_VOTES) {
   const t = state.stats.levels[level.id] || { pull: a.pull || 0, stay: a.stay || 0 };
   const total = t.pull + t.stay;
-  return total >= MIN_VOTES ? t[a.choice] / total : null;
+  return total >= min ? t[a.choice] / total : null;
 }
 
 function archetype() {
@@ -550,7 +550,7 @@ function archetype() {
   const n = answers.length || 1;
   const pulls = answers.filter(([, a]) => a.choice === 'pull').length;
   // تیپ‌های وابسته به هم‌نظری فقط وقتی که چند مرحله رأی کافی داشته باشند
-  const rated = answers.map(([l, a]) => agreement(l, a)).filter((g) => g !== null);
+  const rated = answers.map(([l, a]) => agreement(l, a, ARCH_MIN_VOTES)).filter((g) => g !== null);
   const agreeCount = rated.filter((g) => g >= 0.5).length;
   const agreeRate = rated.length >= 5 ? agreeCount / rated.length : null;
   const minDeaths = answers.reduce((t, [l]) => t + Math.min(optionDeaths(l, 'pull'), optionDeaths(l, 'stay')), 0);
