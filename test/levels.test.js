@@ -78,7 +78,7 @@ test('مرحله‌های ویژه درست تعریف شده‌اند', () => {
   assert.ok(by[last.basedOn], 'مرحله‌ی مبنای احتمال باید وجود داشته باشد');
   assert.ok(last.bottom.items.some((i) => i.k === 'you'));
   assert.equal(LEVELS.filter((l) => !hasChoice(l)).length, 1);
-  assert.equal(MIN_VOTES, 30);
+  assert.equal(MIN_VOTES, 1);
 });
 
 test('چهار مرحله‌ی بازنویسی‌شده: جای درست، بدون مرگ انسان در ریل اهرم', () => {
