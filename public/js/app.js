@@ -14,6 +14,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TOTAL = LEVELS.length;
 const SITE = 'دردسرهای سوزن‌بان';
+// لینک‌ها و آدرس روی تصویرهای اشتراک همیشه نسخه‌ی ایران است: از داخل ایران مستقیم باز می‌شود
+// و کاربر خارج از ایران خودکار به نسخه‌ی بین‌الملل هدایت می‌شود (دات‌کام از داخل ایران همیشه باز نمی‌شود)
+const LOCAL_DEV = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(location.host);
+const SHARE_ORIGIN = LOCAL_DEV ? location.origin : 'https://souzanbaan.ir';
+const SHARE_HOST = SHARE_ORIGIN.replace(/^https?:\/\//, '');
 const CREDIT = '<p class="credit">با الهام از <a href="https://neal.fun/absurd-trolley-problems/" target="_blank" rel="noopener">Absurd Trolley Problems</a> اثر نیل آگاروال<br>ساخته‌ی <a class="owner" href="https://yaghoubian.com" target="_blank" rel="noopener">وحید یعقوبیان</a></p>';
 const SHARE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="ln" d="M12 15 V4 M7.5 8.5 L12 4 L16.5 8.5"/><path class="ln" d="M7 11 H5.5 V20 H18.5 V11 H17"/></svg>';
 
@@ -651,10 +656,10 @@ function gameItem() {
     key: 'game',
     title: SITE,
     text: `«${SITE}»: ${fa(TOTAL)} دوراهی اخلاقی عجیب. اهرم را می‌کشی یا نه؟`,
-    url: `${location.origin}/`,
+    url: `${SHARE_ORIGIN}/`,
     filename: 'soozanban',
     formats: ['story', 'post'],
-    render: (f) => renderGame({ count: TOTAL, host: location.host }, f),
+    render: (f) => renderGame({ count: TOTAL, host: SHARE_HOST }, f),
   };
 }
 
@@ -667,10 +672,10 @@ function levelItem(level) {
     key: `level:${level.id}:${enough ? `${stat.pull}-${stat.stay}` : ''}`,
     title: `${level.title} | ${SITE}`,
     text: `«${level.title}»: ${clip(level.text)}\n${line}تو چه می‌کنی؟`,
-    url: `${location.origin}/l/${encodeURIComponent(level.id)}`,
+    url: `${SHARE_ORIGIN}/l/${encodeURIComponent(level.id)}`,
     filename: `soozanban-${level.id}`,
     formats: ['story', 'post'],
-    render: (f) => renderLevel({ level, stat, host: location.host }, f),
+    render: (f) => renderLevel({ level, stat, host: SHARE_HOST }, f),
   };
 }
 
@@ -679,10 +684,10 @@ function resultItem(deaths, arch) {
     key: `result:${deaths}:${arch.name}:${arch.pulls}:${arch.agreeCount}:${arch.n}`,
     title: SITE,
     text: `در «${SITE}» ${fa(deaths)} نفر را زیر قطار فرستادم و تیپ اخلاقی‌ام شد «${arch.name}» ${arch.icon}\nتو چه می‌کنی؟`,
-    url: `${location.origin}/`,
+    url: `${SHARE_ORIGIN}/`,
     filename: 'soozanban-result',
     formats: ['story', 'post'],
-    render: (f) => renderResult({ deaths, arch, host: location.host }, f),
+    render: (f) => renderResult({ deaths, arch, host: SHARE_HOST }, f),
   };
 }
 
